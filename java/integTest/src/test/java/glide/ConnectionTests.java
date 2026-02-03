@@ -10,6 +10,7 @@ import static glide.api.models.configuration.RequestRoutingConfiguration.SlotTyp
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import glide.api.BaseClient;
 import glide.api.GlideClient;
 import glide.api.GlideClusterClient;
+import glide.api.models.Batch;
 import glide.api.models.ClusterValue;
 import glide.api.models.commands.InfoOptions;
 import glide.api.models.configuration.*;
@@ -839,5 +841,103 @@ public class ConnectionTests {
         assertEquals("OK", clientFalse.set("key3", "value3").get());
         assertEquals("value3", clientFalse.get("key3").get());
         clientFalse.close();
+    }
+
+    @Test
+    @SneakyThrows
+    public void client_setname_and_getname() {
+        GlideClient client =
+                GlideClient.createClient(commonClientConfig().clientName("initial-name").build()).get();
+
+        // Verify initial name from config
+        assertEquals("initial-name", client.clientGetName().get());
+
+        // Set new name
+        assertEquals(OK, client.clientSetName("test-client").get());
+
+        // Get name
+        assertEquals("test-client", client.clientGetName().get());
+
+        client.close();
+    }
+
+    @Test
+    @SneakyThrows
+    public void client_list_returns_clients() {
+        GlideClient client = GlideClient.createClient(commonClientConfig().build()).get();
+
+        String list = client.clientList().get();
+        assertNotNull(list);
+        assertTrue(list.contains("addr="));
+        assertTrue(list.contains("id="));
+
+        client.close();
+    }
+
+    @Test
+    @SneakyThrows
+    public void client_info_returns_info() {
+        GlideClient client = GlideClient.createClient(commonClientConfig().build()).get();
+
+        String info = client.clientInfo().get();
+        assertNotNull(info);
+        assertTrue(info.contains("id="));
+        assertTrue(info.contains("addr="));
+
+        client.close();
+    }
+
+    @Test
+    @SneakyThrows
+    public void client_pause_and_unpause() {
+        GlideClient client = GlideClient.createClient(commonClientConfig().build()).get();
+
+        // Pause for 100ms
+        assertEquals(OK, client.clientPause(100).get());
+
+        // Unpause
+        assertEquals(OK, client.clientUnpause().get());
+
+        client.close();
+    }
+
+    @Test
+    @SneakyThrows
+    public void client_unblock() {
+        GlideClient client = GlideClient.createClient(commonClientConfig().build()).get();
+
+        // Get client ID
+        Long clientId = client.clientId().get();
+        assertNotNull(clientId);
+
+        // Unblock - will return 0 since this client is not blocked
+        Long result = client.clientUnblock(clientId).get();
+        assertEquals(0L, result);
+
+        client.close();
+    }
+
+    @Test
+    @SneakyThrows
+    public void client_commands_in_batch() {
+        GlideClient client = GlideClient.createClient(commonClientConfig().build()).get();
+
+        Batch batch = new Batch(false); // false = not binary output
+        batch.clientId();
+        batch.clientGetName();
+        batch.clientSetName("batch-test");
+        batch.clientList();
+        batch.clientInfo();
+
+        Object[] results = client.exec(batch, false).get();
+
+        // Verify we got results for all commands
+        assertEquals(5, results.length);
+        assertInstanceOf(Long.class, results[0]); // clientId
+        assertInstanceOf(String.class, results[2]); // clientSetName response
+        assertInstanceOf(String.class, results[3]); // clientList response
+        assertInstanceOf(String.class, results[4]); // clientInfo response
+
+        client.close();
     }
 }

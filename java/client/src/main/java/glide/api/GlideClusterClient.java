@@ -3,6 +3,13 @@ package glide.api;
 
 import static command_request.CommandRequestOuterClass.RequestType.ClientGetName;
 import static command_request.CommandRequestOuterClass.RequestType.ClientId;
+import static command_request.CommandRequestOuterClass.RequestType.ClientInfo;
+import static command_request.CommandRequestOuterClass.RequestType.ClientKill;
+import static command_request.CommandRequestOuterClass.RequestType.ClientList;
+import static command_request.CommandRequestOuterClass.RequestType.ClientPause;
+import static command_request.CommandRequestOuterClass.RequestType.ClientSetName;
+import static command_request.CommandRequestOuterClass.RequestType.ClientUnblock;
+import static command_request.CommandRequestOuterClass.RequestType.ClientUnpause;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigGet;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigResetStat;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigRewrite;
@@ -65,6 +72,9 @@ import glide.api.models.commands.InfoOptions.Section;
 import glide.api.models.commands.ScriptArgOptions;
 import glide.api.models.commands.ScriptArgOptionsGlideString;
 import glide.api.models.commands.batch.ClusterBatchOptions;
+import glide.api.models.commands.client.ClientKillOptions;
+import glide.api.models.commands.client.ClientPauseMode;
+import glide.api.models.commands.client.ClientUnblockType;
 import glide.api.models.commands.function.FunctionRestorePolicy;
 import glide.api.models.commands.scan.ClusterScanCursor;
 import glide.api.models.commands.scan.ScanOptions;
@@ -382,6 +392,149 @@ public class GlideClusterClient extends BaseClient
                         route instanceof SingleNodeRoute
                                 ? ClusterValue.of(handleStringOrNullResponse(response))
                                 : ClusterValue.of(handleMapResponse(response)));
+    }
+
+    @Override
+    public CompletableFuture<String> clientSetName(@NonNull String connectionName) {
+        return commandManager.submitNewCommand(
+                ClientSetName, new String[] {connectionName}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientSetName(
+            @NonNull String connectionName, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientSetName, new String[] {connectionName}, route, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientList() {
+        return commandManager.submitNewCommand(ClientList, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<ClusterValue<String>> clientList(@NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientList,
+                new String[0],
+                route,
+                response ->
+                        route instanceof SingleNodeRoute
+                                ? ClusterValue.ofSingleValue(handleStringResponse(response))
+                                : ClusterValue.ofMultiValue(handleMapResponse(response)));
+    }
+
+    @Override
+    public CompletableFuture<String> clientInfo() {
+        return commandManager.submitNewCommand(ClientInfo, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<ClusterValue<String>> clientInfo(@NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientInfo,
+                new String[0],
+                route,
+                response ->
+                        route instanceof SingleNodeRoute
+                                ? ClusterValue.ofSingleValue(handleStringResponse(response))
+                                : ClusterValue.ofMultiValue(handleMapResponse(response)));
+    }
+
+    @Override
+    public CompletableFuture<Long> clientKill(@NonNull String ipPort) {
+        return commandManager.submitNewCommand(
+                ClientKill, new String[] {ipPort}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientKill(@NonNull String ipPort, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientKill, new String[] {ipPort}, route, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientKill(@NonNull ClientKillOptions options) {
+        return commandManager.submitNewCommand(ClientKill, options.toArgs(), this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientKill(
+            @NonNull ClientKillOptions options, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientKill, options.toArgs(), route, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientPause(long timeout) {
+        return commandManager.submitNewCommand(
+                ClientPause, new String[] {Long.toString(timeout)}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientPause(long timeout, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientPause, new String[] {Long.toString(timeout)}, route, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientPause(long timeout, @NonNull ClientPauseMode mode) {
+        return commandManager.submitNewCommand(
+                ClientPause,
+                new String[] {Long.toString(timeout), mode.getValkeyApi()},
+                this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientPause(
+            long timeout, @NonNull ClientPauseMode mode, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientPause,
+                new String[] {Long.toString(timeout), mode.getValkeyApi()},
+                route,
+                this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientUnpause() {
+        return commandManager.submitNewCommand(
+                ClientUnpause, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientUnpause(@NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientUnpause, new String[0], route, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientUnblock(long clientId) {
+        return commandManager.submitNewCommand(
+                ClientUnblock, new String[] {Long.toString(clientId)}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientUnblock(long clientId, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientUnblock, new String[] {Long.toString(clientId)}, route, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientUnblock(long clientId, @NonNull ClientUnblockType type) {
+        return commandManager.submitNewCommand(
+                ClientUnblock,
+                new String[] {Long.toString(clientId), type.getValkeyApi()},
+                this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientUnblock(
+            long clientId, @NonNull ClientUnblockType type, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClientUnblock,
+                new String[] {Long.toString(clientId), type.getValkeyApi()},
+                route,
+                this::handleLongResponse);
     }
 
     @Override

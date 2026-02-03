@@ -16,6 +16,13 @@ import static command_request.CommandRequestOuterClass.RequestType.BitOp;
 import static command_request.CommandRequestOuterClass.RequestType.BitPos;
 import static command_request.CommandRequestOuterClass.RequestType.ClientGetName;
 import static command_request.CommandRequestOuterClass.RequestType.ClientId;
+import static command_request.CommandRequestOuterClass.RequestType.ClientInfo;
+import static command_request.CommandRequestOuterClass.RequestType.ClientKill;
+import static command_request.CommandRequestOuterClass.RequestType.ClientList;
+import static command_request.CommandRequestOuterClass.RequestType.ClientPause;
+import static command_request.CommandRequestOuterClass.RequestType.ClientSetName;
+import static command_request.CommandRequestOuterClass.RequestType.ClientUnblock;
+import static command_request.CommandRequestOuterClass.RequestType.ClientUnpause;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigGet;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigResetStat;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigRewrite;
@@ -290,6 +297,9 @@ import glide.api.models.commands.bitmap.BitFieldOptions.Offset;
 import glide.api.models.commands.bitmap.BitFieldOptions.OffsetMultiplier;
 import glide.api.models.commands.bitmap.BitmapIndexType;
 import glide.api.models.commands.bitmap.BitwiseOperation;
+import glide.api.models.commands.client.ClientKillOptions;
+import glide.api.models.commands.client.ClientPauseMode;
+import glide.api.models.commands.client.ClientUnblockType;
 import glide.api.models.commands.function.FunctionRestorePolicy;
 import glide.api.models.commands.geospatial.GeoAddOptions;
 import glide.api.models.commands.geospatial.GeoSearchOptions;
@@ -2474,6 +2484,128 @@ public abstract class BaseBatch<T extends BaseBatch<T>> {
      */
     public T clientGetName() {
         protobufBatch.addCommands(buildCommand(ClientGetName));
+        return getThis();
+    }
+
+    /**
+     * Sets the name of the current connection.
+     *
+     * @see <a href="https://valkey.io/commands/client-setname/">valkey.io</a> for details.
+     * @param connectionName The name to assign to the current connection.
+     * @return Command response - <code>OK</code> on success.
+     */
+    public T clientSetName(@NonNull String connectionName) {
+        protobufBatch.addCommands(buildCommand(ClientSetName, newArgsBuilder().add(connectionName)));
+        return getThis();
+    }
+
+    /**
+     * Returns information about all client connections.
+     *
+     * @see <a href="https://valkey.io/commands/client-list/">valkey.io</a> for details.
+     * @return Command response - A string containing client connection information.
+     */
+    public T clientList() {
+        protobufBatch.addCommands(buildCommand(ClientList));
+        return getThis();
+    }
+
+    /**
+     * Returns information about the current client connection.
+     *
+     * @see <a href="https://valkey.io/commands/client-info/">valkey.io</a> for details.
+     * @return Command response - A string containing current client connection information.
+     */
+    public T clientInfo() {
+        protobufBatch.addCommands(buildCommand(ClientInfo));
+        return getThis();
+    }
+
+    /**
+     * Kills a client connection by address.
+     *
+     * @see <a href="https://valkey.io/commands/client-kill/">valkey.io</a> for details.
+     * @param ipPort The IP:PORT address of the client to kill.
+     * @return Command response - The number of clients killed.
+     */
+    public T clientKill(@NonNull String ipPort) {
+        protobufBatch.addCommands(buildCommand(ClientKill, newArgsBuilder().add(ipPort)));
+        return getThis();
+    }
+
+    /**
+     * Kills client connections matching the specified filters.
+     *
+     * @see <a href="https://valkey.io/commands/client-kill/">valkey.io</a> for details.
+     * @param options Filters to match clients to kill.
+     * @return Command response - The number of clients killed.
+     */
+    public T clientKill(@NonNull ClientKillOptions options) {
+        protobufBatch.addCommands(buildCommand(ClientKill, newArgsBuilder().add(options.toArgs())));
+        return getThis();
+    }
+
+    /**
+     * Suspends all client connections for the specified timeout.
+     *
+     * @see <a href="https://valkey.io/commands/client-pause/">valkey.io</a> for details.
+     * @param timeout The duration in milliseconds to pause clients.
+     * @return Command response - <code>OK</code> on success.
+     */
+    public T clientPause(long timeout) {
+        protobufBatch.addCommands(buildCommand(ClientPause, newArgsBuilder().add(timeout)));
+        return getThis();
+    }
+
+    /**
+     * Suspends client connections for the specified timeout and mode.
+     *
+     * @see <a href="https://valkey.io/commands/client-pause/">valkey.io</a> for details.
+     * @param timeout The duration in milliseconds to pause clients.
+     * @param mode The pause mode ({@link ClientPauseMode#WRITE} or {@link ClientPauseMode#ALL}).
+     * @return Command response - <code>OK</code> on success.
+     */
+    public T clientPause(long timeout, @NonNull ClientPauseMode mode) {
+        protobufBatch.addCommands(
+                buildCommand(ClientPause, newArgsBuilder().add(timeout).add(mode.getValkeyApi())));
+        return getThis();
+    }
+
+    /**
+     * Resumes processing of clients that were paused by CLIENT PAUSE.
+     *
+     * @see <a href="https://valkey.io/commands/client-unpause/">valkey.io</a> for details.
+     * @return Command response - <code>OK</code> on success.
+     */
+    public T clientUnpause() {
+        protobufBatch.addCommands(buildCommand(ClientUnpause));
+        return getThis();
+    }
+
+    /**
+     * Unblocks a client blocked by a blocking command.
+     *
+     * @see <a href="https://valkey.io/commands/client-unblock/">valkey.io</a> for details.
+     * @param clientId The client ID to unblock.
+     * @return Command response - 1 if the client was unblocked, 0 otherwise.
+     */
+    public T clientUnblock(long clientId) {
+        protobufBatch.addCommands(buildCommand(ClientUnblock, newArgsBuilder().add(clientId)));
+        return getThis();
+    }
+
+    /**
+     * Unblocks a client blocked by a blocking command with a specific error type.
+     *
+     * @see <a href="https://valkey.io/commands/client-unblock/">valkey.io</a> for details.
+     * @param clientId The client ID to unblock.
+     * @param type The unblock type ({@link ClientUnblockType#TIMEOUT} or {@link
+     *     ClientUnblockType#ERROR}).
+     * @return Command response - 1 if the client was unblocked, 0 otherwise.
+     */
+    public T clientUnblock(long clientId, @NonNull ClientUnblockType type) {
+        protobufBatch.addCommands(
+                buildCommand(ClientUnblock, newArgsBuilder().add(clientId).add(type.getValkeyApi())));
         return getThis();
     }
 

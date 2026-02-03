@@ -3,6 +3,13 @@ package glide.api;
 
 import static command_request.CommandRequestOuterClass.RequestType.ClientGetName;
 import static command_request.CommandRequestOuterClass.RequestType.ClientId;
+import static command_request.CommandRequestOuterClass.RequestType.ClientInfo;
+import static command_request.CommandRequestOuterClass.RequestType.ClientKill;
+import static command_request.CommandRequestOuterClass.RequestType.ClientList;
+import static command_request.CommandRequestOuterClass.RequestType.ClientPause;
+import static command_request.CommandRequestOuterClass.RequestType.ClientSetName;
+import static command_request.CommandRequestOuterClass.RequestType.ClientUnblock;
+import static command_request.CommandRequestOuterClass.RequestType.ClientUnpause;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigGet;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigResetStat;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigRewrite;
@@ -48,6 +55,9 @@ import glide.api.models.Transaction;
 import glide.api.models.commands.FlushMode;
 import glide.api.models.commands.InfoOptions.Section;
 import glide.api.models.commands.batch.BatchOptions;
+import glide.api.models.commands.client.ClientKillOptions;
+import glide.api.models.commands.client.ClientPauseMode;
+import glide.api.models.commands.client.ClientUnblockType;
 import glide.api.models.commands.function.FunctionRestorePolicy;
 import glide.api.models.commands.scan.ScanOptions;
 import glide.api.models.configuration.BackoffStrategy;
@@ -223,6 +233,67 @@ public class GlideClient extends BaseClient
     public CompletableFuture<String> clientGetName() {
         return commandManager.submitNewCommand(
                 ClientGetName, new String[0], this::handleStringOrNullResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientSetName(@NonNull String connectionName) {
+        return commandManager.submitNewCommand(
+                ClientSetName, new String[] {connectionName}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientList() {
+        return commandManager.submitNewCommand(ClientList, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientInfo() {
+        return commandManager.submitNewCommand(ClientInfo, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientKill(@NonNull String ipPort) {
+        return commandManager.submitNewCommand(
+                ClientKill, new String[] {ipPort}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientKill(@NonNull ClientKillOptions options) {
+        return commandManager.submitNewCommand(ClientKill, options.toArgs(), this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientPause(long timeout) {
+        return commandManager.submitNewCommand(
+                ClientPause, new String[] {Long.toString(timeout)}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientPause(long timeout, @NonNull ClientPauseMode mode) {
+        return commandManager.submitNewCommand(
+                ClientPause,
+                new String[] {Long.toString(timeout), mode.getValkeyApi()},
+                this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clientUnpause() {
+        return commandManager.submitNewCommand(
+                ClientUnpause, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientUnblock(long clientId) {
+        return commandManager.submitNewCommand(
+                ClientUnblock, new String[] {Long.toString(clientId)}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clientUnblock(long clientId, @NonNull ClientUnblockType type) {
+        return commandManager.submitNewCommand(
+                ClientUnblock,
+                new String[] {Long.toString(clientId), type.getValkeyApi()},
+                this::handleLongResponse);
     }
 
     @Override

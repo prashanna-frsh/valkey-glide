@@ -71,6 +71,8 @@ import glide.api.models.commands.SortOptionsBinary;
 import glide.api.models.commands.WeightAggregateOptions.KeyArray;
 import glide.api.models.commands.batch.ClusterBatchOptions;
 import glide.api.models.commands.bitmap.BitwiseOperation;
+import glide.api.models.commands.client.ClientPauseMode;
+import glide.api.models.commands.client.ClientUnblockType;
 import glide.api.models.commands.geospatial.GeoSearchOrigin;
 import glide.api.models.commands.geospatial.GeoSearchResultOptions;
 import glide.api.models.commands.geospatial.GeoSearchShape;
@@ -3946,5 +3948,113 @@ public class CommandTests {
         } finally {
             client.close();
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("getClients")
+    @SneakyThrows
+    public void client_setname_and_getname_cluster(GlideClusterClient clusterClient) {
+        String name = "cluster-test-" + UUID.randomUUID().toString();
+        
+        // Set name on all nodes
+        assertEquals(OK, clusterClient.clientSetName(name).get());
+
+        // Get name from random node (should be set on all nodes)
+        String retrievedName = clusterClient.clientGetName(RANDOM).get().getSingleValue();
+        assertEquals(name, retrievedName);
+
+        // Get name from all nodes
+        ClusterValue<String> allNames = clusterClient.clientGetName(ALL_NODES).get();
+        assertTrue(allNames.hasMultiData());
+        for (String nodeName : allNames.getMultiValue().values()) {
+            assertEquals(name, nodeName);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("getClients")
+    @SneakyThrows
+    public void client_list_cluster_routing(GlideClusterClient clusterClient) {
+        // Test routing to random node
+        String list = clusterClient.clientList(RANDOM).get().getSingleValue();
+        assertNotNull(list);
+        assertTrue(list.contains("addr="));
+
+        // Test routing to all nodes
+        ClusterValue<String> result = clusterClient.clientList(ALL_NODES).get();
+        assertTrue(result.hasMultiData());
+        for (String nodeList : result.getMultiValue().values()) {
+            assertNotNull(nodeList);
+            assertTrue(nodeList.contains("addr="));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("getClients")
+    @SneakyThrows
+    public void client_info_cluster_routing(GlideClusterClient clusterClient) {
+        // Test routing to random node
+        String info = clusterClient.clientInfo(RANDOM).get().getSingleValue();
+        assertNotNull(info);
+        assertTrue(info.contains("id="));
+
+        // Test routing to all nodes
+        ClusterValue<String> result = clusterClient.clientInfo(ALL_NODES).get();
+        assertTrue(result.hasMultiData());
+        for (String nodeInfo : result.getMultiValue().values()) {
+            assertNotNull(nodeInfo);
+            assertTrue(nodeInfo.contains("id="));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("getClients")
+    @SneakyThrows
+    public void client_pause_and_unpause_cluster(GlideClusterClient clusterClient) {
+        // Test with RANDOM node (single node routing)
+        assertEquals(OK, clusterClient.clientPause(100, RANDOM).get());
+        assertEquals(OK, clusterClient.clientUnpause(RANDOM).get());
+
+        // Pause with WRITE mode on single node
+        assertEquals(OK, clusterClient.clientPause(100, ClientPauseMode.WRITE, RANDOM).get());
+        assertEquals(OK, clusterClient.clientUnpause(RANDOM).get());
+    }
+
+    @ParameterizedTest
+    @MethodSource("getClients")
+    @SneakyThrows
+    public void client_unblock_cluster(GlideClusterClient clusterClient) {
+        // Get client ID from random node
+        Long clientId = clusterClient.clientId(RANDOM).get().getSingleValue();
+        assertNotNull(clientId);
+
+        // Unblock - will return 0 since this client is not blocked
+        Long result = clusterClient.clientUnblock(clientId, RANDOM).get();
+        assertEquals(0L, result);
+
+        // Test with error type
+        result = clusterClient.clientUnblock(clientId, ClientUnblockType.ERROR, RANDOM).get();
+        assertEquals(0L, result);
+    }
+
+    @ParameterizedTest
+    @MethodSource("getClients")
+    @SneakyThrows
+    public void client_commands_in_cluster_batch(GlideClusterClient clusterClient) {
+        ClusterBatch batch = new ClusterBatch(false); // false = not binary output
+        batch.clientId();
+        batch.clientGetName();
+        batch.clientSetName("batch-cluster-test");
+        batch.clientList();
+        batch.clientInfo();
+
+        Object[] results = clusterClient.exec(batch, false).get();
+
+        // Verify we got results for all commands
+        assertEquals(5, results.length);
+        assertInstanceOf(Long.class, results[0]); // clientId
+        assertInstanceOf(String.class, results[2]); // clientSetName response
+        assertInstanceOf(String.class, results[3]); // clientList response
+        assertInstanceOf(String.class, results[4]); // clientInfo response
     }
 }
