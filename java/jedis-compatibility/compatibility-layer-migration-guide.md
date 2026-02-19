@@ -69,7 +69,10 @@ blockingSocketTimeoutMillis
 - ✅ Set operations (SADD, SREM, SMEMBERS, SCARD, SISMEMBER, SMISMEMBER, SPOP, SRANDMEMBER, SMOVE, SINTER, SINTERCARD, SINTERSTORE, SUNION, SUNIONSTORE, SDIFF, SDIFFSTORE, SSCAN) via type-safe methods
 - ⚠️ Sorted set operations (ZADD, ZREM, ZRANGE) - **Available via `sendCommand()` only**
 - ✅ Key operations (DEL, EXISTS, EXPIRE, TTL)
-- ✅ Connection commands (PING, SELECT)
+- ✅ Connection commands (PING, SELECT, ECHO)
+- ✅ Client commands (CLIENT ID, CLIENT GETNAME)
+- ✅ Transaction commands (WATCH, UNWATCH) - Note: MULTI/EXEC/DISCARD use GLIDE's Batch API instead
+- ✅ Custom commands via `customCommand()` for any Valkey command
 - ✅ ACL commands (ACL LIST, ACL GETUSER, ACL SETUSER, ACL DELUSER, ACL CAT, ACL GENPASS, ACL LOG, ACL LOG RESET, ACL WHOAMI, ACL USERS, ACL SAVE, ACL LOAD, ACL DRYRUN)
 - ✅ Generic commands via `sendCommand()` (Protocol.Command types only)
 
@@ -95,11 +98,12 @@ blockingSocketTimeoutMillis
 - **Failover configurations**: Jedis-specific failover logic not supported
 
 ### Advanced Features
-- **Transactions**: MULTI/EXEC transaction blocks not supported
-- **Pipelining**: Jedis pipelining functionality unavailable
+- ⚠️ **Transactions**: Traditional MULTI/EXEC/DISCARD pattern not supported - use GLIDE's `Batch` API instead (WATCH/UNWATCH are supported)
+- **Pipelining**: Jedis pipelining functionality unavailable - use GLIDE's `Batch` API for batching
 - **Pub/Sub**: Redis publish/subscribe not implemented
-- ✅ **Lua scripting**: Full support for EVAL/EVALSHA, SCRIPT management, and Valkey Functions (FCALL/FUNCTION *)
-- **Modules**: Redis module commands not available
+- ✅ **Lua scripting**: Full support for EVAL/EVALSHA, SCRIPT management (including SCRIPT DEBUG, SCRIPT HELP), and Valkey Functions (FCALL/FUNCTION *)
+- ✅ **Custom commands**: Full support for executing any Valkey command via `customCommand()`
+- **Modules**: Redis module commands available via `customCommand()` or `sendCommand()`
 - **Typed sorted set methods**: No dedicated methods like `zadd()`, `zrem()` - use `sendCommand()` instead
 
 ### Configuration Limitations

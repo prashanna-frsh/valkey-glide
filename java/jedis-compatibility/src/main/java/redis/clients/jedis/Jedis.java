@@ -624,6 +624,62 @@ public final class Jedis implements Closeable {
     }
 
     /**
+     * Echo the given string. This command is often used for testing and debugging, as it simply
+     * returns the message back to the client unchanged.
+     *
+     * @param message the message to echo (must not be null)
+     * @return the echoed message exactly as sent
+     * @throws JedisException if the operation fails
+     * @see <a href="https://valkey.io/commands/echo/">ECHO</a>
+     * @since Valkey 1.0.0
+     */
+    public String echo(String message) {
+        return executeCommandWithGlide("ECHO", () -> glideClient.echo(message).get());
+    }
+
+    /**
+     * Echo the given binary message.
+     *
+     * @param message the binary message to echo
+     * @return the echoed message
+     * @see <a href="https://valkey.io/commands/echo/">ECHO</a>
+     */
+    public byte[] echo(byte[] message) {
+        return executeCommandWithGlide(
+                "ECHO",
+                () -> {
+                    GlideString result = glideClient.echo(GlideString.of(message)).get();
+                    return result.getBytes();
+                });
+    }
+
+    /**
+     * Returns the ID of the current connection. Every connection to the Valkey server has a unique ID
+     * that can be used for tracking, debugging, and managing client connections.
+     *
+     * @return the connection ID as a long
+     * @throws JedisException if the operation fails
+     * @see <a href="https://valkey.io/commands/client-id/">CLIENT ID</a>
+     * @since Valkey 5.0.0
+     */
+    public long clientId() {
+        return executeCommandWithGlide("CLIENT ID", () -> glideClient.clientId().get());
+    }
+
+    /**
+     * Returns the name of the current connection as set by CLIENT SETNAME. Connection names provide a
+     * way to identify and debug connections in multi-client scenarios.
+     *
+     * @return the connection name, or null if no name has been assigned
+     * @throws JedisException if the operation fails
+     * @see <a href="https://valkey.io/commands/client-getname/">CLIENT GETNAME</a>
+     * @since Valkey 2.6.9
+     */
+    public String clientGetname() {
+        return executeCommandWithGlide("CLIENT GETNAME", () -> glideClient.clientGetName().get());
+    }
+
+    /**
      * Select a database.
      *
      * @param index the database index
@@ -7552,6 +7608,64 @@ public final class Jedis implements Closeable {
     }
 
     /**
+     * Show helpful text about the different subcommands for the SCRIPT command.
+     *
+     * @return help text about SCRIPT subcommands
+     * @see <a href="https://valkey.io/commands/script-help/">SCRIPT HELP</a>
+     * @since Valkey 5.0.0
+     */
+    public List<String> scriptShow() {
+        return executeCommandWithGlide(
+                "SCRIPT SHOW",
+                () -> {
+                    Object result = glideClient.customCommand(new String[] {"SCRIPT", "HELP"}).get();
+                    if (result instanceof Object[]) {
+                        Object[] arr = (Object[]) result;
+                        List<String> help = new ArrayList<>(arr.length);
+                        for (Object obj : arr) {
+                            help.add(obj.toString());
+                        }
+                        return help;
+                    }
+                    return Collections.emptyList();
+                });
+    }
+
+    /**
+     * Set the debug mode for executed Lua scripts. This command controls whether scripts are executed
+     * in debug mode, allowing for step-by-step execution and inspection.
+     *
+     * @param mode the debug mode - "YES" to enable debugging, "NO" to disable, or "SYNC" for
+     *     synchronous debugging
+     * @return "OK"
+     * @throws JedisException if the operation fails
+     * @see <a href="https://valkey.io/commands/script-debug/">SCRIPT DEBUG</a>
+     * @since Valkey 3.2.0
+     */
+    public String scriptDebug(String mode) {
+        return executeCommandWithGlide(
+                "SCRIPT DEBUG",
+                () -> {
+                    glide.api.models.commands.ScriptDebugMode debugMode;
+                    switch (mode.toUpperCase()) {
+                        case "YES":
+                            debugMode = glide.api.models.commands.ScriptDebugMode.YES;
+                            break;
+                        case "NO":
+                            debugMode = glide.api.models.commands.ScriptDebugMode.NO;
+                            break;
+                        case "SYNC":
+                            debugMode = glide.api.models.commands.ScriptDebugMode.SYNC;
+                            break;
+                        default:
+                            throw new IllegalArgumentException(
+                                    "Invalid script debug mode: " + mode + ". Must be YES, NO, or SYNC.");
+                    }
+                    return glideClient.scriptDebug(debugMode).get();
+                });
+    }
+
+    /**
      * Loads a library to Valkey.
      *
      * @param functionCode the source code that implements the library
@@ -8468,6 +8582,222 @@ public final class Jedis implements Closeable {
             builder.count(params.getCount());
         }
         return builder.build();
+    }
+
+    // ========== TRANSACTION COMMANDS ==========
+
+    /**
+     * Marks the given keys to be watched for conditional execution of a transaction. When WATCH is
+     * called, the server will monitor the specified keys for modifications by other clients. If any
+     * watched key is modified before EXEC is called, the transaction will be aborted and EXEC will
+     * return null.
+     *
+     * <p>This provides optimistic locking for transactions, allowing you to ensure that keys haven't
+     * changed between reading them and executing operations based on those values.
+     *
+     * <p><b>Note:</b> In Jedis compatibility mode, transactions are executed using GLIDE's Batch API.
+     * The traditional Jedis multi() → commands() → exec() pattern should be replaced with Batch API
+     * usage. The WATCH command works with both approaches.
+     *
+     * @param keys the keys to watch (must not be null or empty)
+     * @return "OK"
+     * @throws JedisException if the operation fails
+     * @see <a href="https://valkey.io/commands/watch/">WATCH</a>
+     * @since Valkey 2.2.0
+     */
+    public String watch(String... keys) {
+        return executeCommandWithGlide("WATCH", () -> glideClient.watch(keys).get());
+    }
+
+    /**
+     * Marks the given binary keys to be watched for conditional execution of a transaction.
+     *
+     * @param keys the keys to watch
+     * @return "OK"
+     * @see <a href="https://valkey.io/commands/watch/">WATCH</a>
+     */
+    public String watch(byte[]... keys) {
+        return executeCommandWithGlide(
+                "WATCH",
+                () -> {
+                    GlideString[] glideKeys = new GlideString[keys.length];
+                    for (int i = 0; i < keys.length; i++) {
+                        glideKeys[i] = GlideString.of(keys[i]);
+                    }
+                    return glideClient.watch(glideKeys).get();
+                });
+    }
+
+    /**
+     * Flushes all the previously watched keys for a transaction. Executing a transaction will
+     * automatically flush all previously watched keys. This command is useful when you want to abort
+     * a planned transaction without executing it.
+     *
+     * <p>After calling UNWATCH, all keys that were being monitored are no longer watched, and the
+     * connection can be used for other operations or to start a new transaction with different
+     * watched keys.
+     *
+     * @return "OK"
+     * @throws JedisException if the operation fails
+     * @see <a href="https://valkey.io/commands/unwatch/">UNWATCH</a>
+     * @since Valkey 2.2.0
+     */
+    public String unwatch() {
+        return executeCommandWithGlide("UNWATCH", () -> glideClient.unwatch().get());
+    }
+
+    /**
+     * Marks the start of a transaction block. Subsequent commands will be queued for atomic execution
+     * using EXEC.
+     *
+     * <p><b>GLIDE Compatibility Note:</b> In the Valkey GLIDE compatibility layer, the traditional
+     * Jedis transaction pattern (multi() → commands() → exec()) is not directly supported. GLIDE uses
+     * a different transaction model via the {@code Batch} API with atomic execution.
+     *
+     * <p>Instead of using this method, please use GLIDE's Batch API:
+     *
+     * <pre>{@code
+     * // Recommended GLIDE approach:
+     * Batch transaction = new Batch(true)  // true = atomic (transactional)
+     *     .set("key1", "value1")
+     *     .incr("key1")
+     *     .get("key1");
+     * Object[] results = jedis.getGlideClient().exec(transaction, true).get();
+     * }</pre>
+     *
+     * @return "OK" (Valkey returns OK for MULTI)
+     * @throws UnsupportedOperationException this pattern is not supported in GLIDE compatibility
+     *     layer; use Batch API instead
+     * @deprecated Use GLIDE's {@code Batch} API for transactions instead of the traditional Jedis
+     *     MULTI/EXEC pattern
+     * @see glide.api.models.Batch
+     * @see <a href="https://valkey.io/commands/multi/">MULTI</a>
+     * @since Valkey 1.2.0
+     */
+    @Deprecated
+    public String multi() {
+        throw new UnsupportedOperationException(
+                "MULTI/EXEC transaction pattern is not supported in GLIDE compatibility layer. "
+                        + "Use GLIDE's Batch API instead: new Batch(true).set(...).get(...)");
+    }
+
+    /**
+     * Executes all commands issued after MULTI.
+     *
+     * <p><b>GLIDE Compatibility Note:</b> This method is not supported in the Jedis compatibility
+     * layer. GLIDE uses a different transaction model via the {@code Batch} API.
+     *
+     * <p>To execute transactions with GLIDE, use:
+     *
+     * <pre>{@code
+     * Batch transaction = new Batch(true);  // true = atomic
+     * transaction.set("key", "value");
+     * transaction.get("key");
+     * Object[] results = jedis.getGlideClient().exec(transaction, true).get();
+     * }</pre>
+     *
+     * @return list of replies, one for each command (currently throws UnsupportedOperationException)
+     * @throws UnsupportedOperationException this method is not supported in GLIDE compatibility
+     *     layer; use Batch API instead
+     * @deprecated Use GLIDE's {@code Batch} API for transactions
+     * @see glide.api.models.Batch
+     * @see <a href="https://valkey.io/commands/exec/">EXEC</a>
+     * @since Valkey 1.2.0
+     */
+    @Deprecated
+    public List<Object> exec() {
+        throw new UnsupportedOperationException(
+                "EXEC is not supported in GLIDE compatibility layer. "
+                        + "Use GLIDE's Batch API with exec() method instead.");
+    }
+
+    /**
+     * Discards all commands issued after MULTI.
+     *
+     * <p><b>GLIDE Compatibility Note:</b> This method is not supported in the Jedis compatibility
+     * layer because GLIDE uses a different transaction model. With GLIDE's Batch API, you simply
+     * don't call exec() if you want to discard a transaction - just don't execute the Batch object.
+     *
+     * @return "OK" (currently throws UnsupportedOperationException)
+     * @throws UnsupportedOperationException this method is not supported in GLIDE compatibility layer
+     * @deprecated GLIDE's Batch API doesn't require an explicit discard - simply don't execute the
+     *     Batch
+     * @see glide.api.models.Batch
+     * @see <a href="https://valkey.io/commands/discard/">DISCARD</a>
+     * @since Valkey 2.0.0
+     */
+    @Deprecated
+    public String discard() {
+        throw new UnsupportedOperationException(
+                "DISCARD is not supported in GLIDE compatibility layer. "
+                        + "With GLIDE's Batch API, simply don't call exec() to discard a transaction.");
+    }
+
+    // ========== CUSTOM COMMAND ==========
+
+    /**
+     * Executes a custom Valkey command. This method allows you to execute any Valkey command,
+     * including custom modules or commands not explicitly supported by the client library.
+     *
+     * <p>This is useful for:
+     *
+     * <ul>
+     *   <li>Executing commands from Valkey modules
+     *   <li>Using new Valkey commands not yet supported by the client
+     *   <li>Sending raw commands for debugging or testing
+     * </ul>
+     *
+     * <p><b>Example:</b>
+     *
+     * <pre>{@code
+     * // Execute a module command
+     * Object result = jedis.customCommand("JSON.SET", "user:1", "$", "{\"name\":\"John\"}");
+     *
+     * // Execute a standard command
+     * Object value = jedis.customCommand("GET", "mykey");
+     * }</pre>
+     *
+     * @param command the command name (must not be null)
+     * @param args the command arguments (optional)
+     * @return the command result; type depends on the command executed
+     * @throws JedisException if the command execution fails
+     * @see <a href="https://valkey.io/commands/">Valkey Commands Reference</a>
+     */
+    public Object customCommand(String command, String... args) {
+        checkNotClosed();
+        ensureInitialized();
+        try {
+            String[] fullArgs = new String[args.length + 1];
+            fullArgs[0] = command;
+            System.arraycopy(args, 0, fullArgs, 1, args.length);
+            return glideClient.customCommand(fullArgs).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new JedisException("Custom command execution failed: " + command, e);
+        }
+    }
+
+    /**
+     * Executes a custom Valkey command with binary arguments.
+     *
+     * @param command the command name
+     * @param args the binary command arguments
+     * @return the command result
+     * @throws JedisException if the command execution fails
+     */
+    public Object customCommand(byte[] command, byte[]... args) {
+        checkNotClosed();
+        ensureInitialized();
+        try {
+            GlideString[] fullArgs = new GlideString[args.length + 1];
+            fullArgs[0] = GlideString.of(command);
+            for (int i = 0; i < args.length; i++) {
+                fullArgs[i + 1] = GlideString.of(args[i]);
+            }
+            return glideClient.customCommand(fullArgs).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new JedisException(
+                    "Custom command execution failed: " + new String(command, VALKEY_CHARSET), e);
+        }
     }
 
     // Static initialization block for cleanup hooks

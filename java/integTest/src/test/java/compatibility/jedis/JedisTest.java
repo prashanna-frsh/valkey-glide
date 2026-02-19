@@ -212,6 +212,164 @@ public class JedisTest {
     }
 
     @Test
+    void echo_command() {
+        String message = "Hello, Valkey!";
+        String result = jedis.echo(message);
+        assertEquals(message, result, "ECHO should return the same message");
+
+        // Test with special characters
+        String specialMessage = "Test with spaces, 特殊字符, and émojis 🚀";
+        result = jedis.echo(specialMessage);
+        assertEquals(specialMessage, result, "ECHO should preserve special characters");
+
+        // Test binary version
+        byte[] binaryMessage = new byte[] {0x00, 0x01, 0x02, (byte) 0xFF};
+        byte[] binaryResult = jedis.echo(binaryMessage);
+        assertArrayEquals(binaryMessage, binaryResult, "ECHO binary should return the same bytes");
+    }
+
+    @Test
+    void clientId_command() {
+        long clientId = jedis.clientId();
+        assertTrue(clientId > 0, "CLIENT ID should return a positive connection ID");
+
+        // Client ID should be consistent for the same connection
+        long secondCall = jedis.clientId();
+        assertEquals(clientId, secondCall, "CLIENT ID should be stable for the same connection");
+    }
+
+    @Test
+    void clientGetname_command() {
+        // Get the current client name (might be null or default)
+        String name = jedis.clientGetname();
+        // GLIDE sets a default client name, so it may not be null
+        // We just verify the command works without throwing an exception
+
+        // Note: CLIENT SETNAME is not yet implemented in Jedis compatibility layer,
+        // so we can only test GETNAME retrieval
+        assertDoesNotThrow(() -> jedis.clientGetname(), "CLIENT GETNAME should not throw");
+    }
+
+    @Test
+    void customCommand_string_args() {
+        String key = UUID.randomUUID().toString();
+        String value = "custom_value";
+
+        // Use customCommand for SET
+        Object setResult = jedis.customCommand("SET", key, value);
+        assertEquals("OK", setResult.toString(), "Custom SET should return OK");
+
+        // Use customCommand for GET
+        Object getResult = jedis.customCommand("GET", key);
+        assertEquals(value, getResult.toString(), "Custom GET should return the value");
+
+        // Use customCommand for DEL
+        Object delResult = jedis.customCommand("DEL", key);
+        assertEquals(1L, ((Number) delResult).longValue(), "Custom DEL should return 1");
+    }
+
+    @Test
+    void customCommand_binary_args() {
+        byte[] key = "binary-key".getBytes(StandardCharsets.UTF_8);
+        byte[] value = new byte[] {0x00, 0x01, 0x02, (byte) 0xFF};
+
+        // Use customCommand for SET with binary data
+        Object setResult = jedis.customCommand("SET".getBytes(), key, value);
+        assertEquals("OK", setResult.toString(), "Custom SET binary should return OK");
+
+        // Use customCommand for GET with binary data
+        Object getResult = jedis.customCommand("GET".getBytes(), key);
+        assertNotNull(getResult, "Custom GET binary should return the value");
+
+        // Cleanup
+        jedis.customCommand("DEL".getBytes(), key);
+    }
+
+    @Test
+    void watch_and_unwatch_commands() {
+        String key1 = UUID.randomUUID().toString();
+        String key2 = UUID.randomUUID().toString();
+
+        // Test WATCH with single key
+        String watchResult = jedis.watch(key1);
+        assertEquals("OK", watchResult, "WATCH should return OK");
+
+        // Test WATCH with multiple keys
+        watchResult = jedis.watch(key2, UUID.randomUUID().toString());
+        assertEquals("OK", watchResult, "WATCH with multiple keys should return OK");
+
+        // Test UNWATCH
+        String unwatchResult = jedis.unwatch();
+        assertEquals("OK", unwatchResult, "UNWATCH should return OK");
+
+        // Test binary version
+        byte[] binaryKey = "binary-watch-key".getBytes(StandardCharsets.UTF_8);
+        String binaryWatchResult = jedis.watch(binaryKey);
+        assertEquals("OK", binaryWatchResult, "WATCH binary should return OK");
+
+        unwatchResult = jedis.unwatch();
+        assertEquals("OK", unwatchResult, "UNWATCH after binary WATCH should return OK");
+    }
+
+    @Test
+    void multi_exec_discard_not_supported() {
+        // Test that MULTI throws UnsupportedOperationException
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> jedis.multi(),
+                "MULTI should throw UnsupportedOperationException in GLIDE compatibility layer");
+
+        // Test that EXEC throws UnsupportedOperationException
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> jedis.exec(),
+                "EXEC should throw UnsupportedOperationException in GLIDE compatibility layer");
+
+        // Test that DISCARD throws UnsupportedOperationException
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> jedis.discard(),
+                "DISCARD should throw UnsupportedOperationException in GLIDE compatibility layer");
+    }
+
+    @Test
+    void scriptShow_command() {
+        List<String> help = jedis.scriptShow();
+        assertNotNull(help, "SCRIPT SHOW should return help text");
+        assertFalse(help.isEmpty(), "SCRIPT SHOW should return non-empty help");
+        // The help text should contain information about SCRIPT subcommands
+        String helpText = String.join(" ", help);
+        assertTrue(
+                helpText.toLowerCase().contains("script")
+                        || helpText.toLowerCase().contains("help")
+                        || helpText.toLowerCase().contains("debug")
+                        || helpText.toLowerCase().contains("flush")
+                        || helpText.toLowerCase().contains("load"),
+                "SCRIPT SHOW should mention script-related commands");
+    }
+
+    @Test
+    void scriptDebug_command() {
+        // Test setting debug mode to NO (always safe)
+        String result = jedis.scriptDebug("NO");
+        assertEquals("OK", result, "SCRIPT DEBUG NO should return OK");
+
+        // Test with YES
+        result = jedis.scriptDebug("YES");
+        assertEquals("OK", result, "SCRIPT DEBUG YES should return OK");
+
+        // Reset to NO for clean state
+        result = jedis.scriptDebug("NO");
+        assertEquals("OK", result, "SCRIPT DEBUG NO should return OK");
+
+        // Test invalid mode
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> jedis.scriptDebug("INVALID"),
+                "SCRIPT DEBUG with invalid mode should throw IllegalArgumentException");
+    }
+
+    @Test
     void basic_get_set_operations() {
         String testKey = UUID.randomUUID().toString();
         String testValue = "test_value_123";

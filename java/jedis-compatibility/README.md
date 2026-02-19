@@ -63,6 +63,80 @@ try (Jedis jedis = new Jedis("localhost", 6379)) {
 }
 ```
 
+### Connection and Client Commands
+
+The compatibility layer supports client connection management and inspection commands:
+
+```java
+import redis.clients.jedis.Jedis;
+
+try (Jedis jedis = new Jedis("localhost", 6379)) {
+    // Echo a message
+    String echoed = jedis.echo("Hello, Valkey!");
+    System.out.println(echoed); // prints: Hello, Valkey!
+    
+    // Get the client connection ID
+    long clientId = jedis.clientId();
+    System.out.println("Client ID: " + clientId);
+    
+    // Get the client connection name (if set)
+    String clientName = jedis.clientGetname();
+    System.out.println("Client name: " + clientName);
+}
+```
+
+### Custom Commands
+
+Execute any Valkey command, including module commands or new commands not yet in the API:
+
+```java
+import redis.clients.jedis.Jedis;
+
+try (Jedis jedis = new Jedis("localhost", 6379)) {
+    // Execute a custom command
+    Object result = jedis.customCommand("SET", "mykey", "myvalue");
+    System.out.println(result); // prints: OK
+    
+    // Execute a module command (e.g., RedisJSON)
+    Object jsonResult = jedis.customCommand("JSON.SET", "user:1", "$", "{\"name\":\"John\"}");
+    
+    // Read the value back
+    Object value = jedis.customCommand("GET", "mykey");
+    System.out.println(value); // prints: myvalue
+}
+```
+
+### Transaction Commands
+
+The compatibility layer provides transaction support with GLIDE's Batch API:
+
+```java
+import redis.clients.jedis.Jedis;
+import glide.api.models.Batch;
+
+try (Jedis jedis = new Jedis("localhost", 6379)) {
+    // Watch keys for optimistic locking
+    jedis.watch("counter");
+    
+    // Get current value
+    String currentValue = jedis.get("counter");
+    int newValue = (currentValue != null ? Integer.parseInt(currentValue) : 0) + 1;
+    
+    // Execute transaction using GLIDE's Batch API
+    Batch transaction = new Batch(true)  // true = atomic (transactional)
+        .set("counter", String.valueOf(newValue))
+        .get("counter");
+    
+    Object[] results = jedis.getGlideClient().exec(transaction, true).get();
+    System.out.println("Transaction result: " + results[1]);
+    
+    // Unwatch all keys
+    jedis.unwatch();
+}
+```
+
+**Note**: The traditional Jedis transaction pattern (`multi()`, `exec()`, `discard()`) is not supported in the GLIDE compatibility layer. These methods will throw `UnsupportedOperationException`. Use GLIDE's `Batch` API instead for transactional operations.
+
 ### Scripting Commands
 
 The compatibility layer supports Lua scripting and Valkey Functions:
@@ -123,6 +197,24 @@ try (Jedis jedis = new Jedis("localhost", 6379)) {
     
     // Clean up
     jedis.functionDelete("mylib");
+}
+```
+
+#### Script Debugging
+
+```java
+import redis.clients.jedis.Jedis;
+
+try (Jedis jedis = new Jedis("localhost", 6379)) {
+    // Enable script debugging
+    jedis.scriptDebug("YES");
+    
+    // Get script help/information
+    List<String> scriptHelp = jedis.scriptShow();
+    scriptHelp.forEach(System.out::println);
+    
+    // Disable script debugging
+    jedis.scriptDebug("NO");
 }
 ```
 
