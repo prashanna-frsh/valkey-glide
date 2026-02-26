@@ -15,9 +15,19 @@ export const PORT = 6379;
 export const SIZE_SET_KEYSPACE = 3000000; // 3 million
 export const SIZE_GET_KEYSPACE = 3750000; // 3.75 million
 
-export function getAddress(host: string, tls: boolean, port: number): string {
+export function getAddress(
+    host: string,
+    tls: boolean,
+    port: number,
+    username?: string | null,
+    password?: string | null,
+): string {
     const protocol = tls ? "rediss" : "redis";
-    return `${protocol}://${host}:${port}`;
+    const auth =
+        password != null
+            ? `${username ?? "default"}:${encodeURIComponent(password)}@`
+            : "";
+    return `${protocol}://${auth}${host}:${port}`;
 }
 
 export function createRedisClient(
@@ -25,19 +35,26 @@ export function createRedisClient(
     isCluster: boolean,
     tls: boolean,
     port: number,
+    password?: string | null,
+    username?: string | null,
 ): RedisClusterType | RedisClientType {
+    const socket = { host, port: port ?? PORT, tls };
+    const auth =
+        password != null
+            ? { password, username: username ?? "default" }
+            : {};
     return isCluster
         ? createCluster({
-              rootNodes: [{ socket: { host, port: port ?? PORT, tls } }],
+              rootNodes: [{ socket }],
               defaults: {
-                  socket: {
-                      tls,
-                  },
+                  socket: { tls },
+                  ...auth,
               },
               useReplicas: true,
           })
         : createClient({
-              url: getAddress(host, tls, port),
+              url: getAddress(host, tls, port, username, password),
+              ...auth,
           });
 }
 
@@ -58,12 +75,25 @@ const optionDefinitions = [
     { name: "host", type: String, defaultValue: "localhost" },
     { name: "clientCount", type: String, multiple: true, defaultValue: ["1"] },
     { name: "tls", type: Boolean, defaultValue: false },
+    { name: "no-tls", type: Boolean, defaultValue: false },
     { name: "minimal", type: Boolean, defaultValue: false },
     { name: "clusterModeEnabled", type: Boolean, defaultValue: false },
     { name: "port", type: Number, defaultValue: PORT },
+    { name: "password", type: String, defaultValue: undefined },
+    { name: "username", type: String, defaultValue: undefined },
 ];
 
 export const receivedOptions = commandLineArgs(optionDefinitions);
+if (receivedOptions["no-tls"]) {
+    receivedOptions.tls = false;
+}
+if (
+    receivedOptions.password === undefined &&
+    typeof process !== "undefined" &&
+    process.env.REDIS_PASSWORD
+) {
+    receivedOptions.password = process.env.REDIS_PASSWORD;
+}
 
 export function generateValue(size: number): string {
     return "0".repeat(size);

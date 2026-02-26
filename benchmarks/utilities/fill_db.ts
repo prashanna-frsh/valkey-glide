@@ -15,8 +15,17 @@ async function fill_database(
     isCluster: boolean,
     tls: boolean,
     port: number,
+    password?: string | null,
+    username?: string | null,
 ) {
-    const client = await createRedisClient(host, isCluster, tls, port);
+    const client = await createRedisClient(
+        host,
+        isCluster,
+        tls,
+        port,
+        password,
+        username,
+    );
     const data = generateValue(data_size);
     await client.connect();
 
@@ -45,6 +54,8 @@ Promise.resolve()
             receivedOptions.clusterModeEnabled,
             receivedOptions.tls,
             receivedOptions.port,
+            receivedOptions.password,
+            receivedOptions.username,
         );
     })
     .then(() => {

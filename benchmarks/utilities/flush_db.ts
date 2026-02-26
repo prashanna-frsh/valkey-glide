@@ -10,6 +10,8 @@ async function flush_database(
     isCluster: boolean,
     tls: boolean,
     port: number,
+    password?: string | null,
+    username?: string | null,
 ) {
     if (isCluster) {
         const client = (await createRedisClient(
@@ -17,10 +19,19 @@ async function flush_database(
             isCluster,
             tls,
             port,
+            password,
+            username,
         )) as RedisClusterType;
         await Promise.all(
             client.masters.map((master) => {
-                return flush_database(master.host, false, tls, master.port);
+                return flush_database(
+                    master.host,
+                    false,
+                    tls,
+                    master.port,
+                    password,
+                    username,
+                );
             }),
         );
         await client.quit();
@@ -30,6 +41,8 @@ async function flush_database(
             isCluster,
             tls,
             port,
+            password,
+            username,
         )) as RedisClientType;
         await client.connect();
         await client.flushAll();
@@ -45,6 +58,8 @@ Promise.resolve()
             receivedOptions.clusterModeEnabled,
             receivedOptions.tls,
             receivedOptions.port,
+            receivedOptions.password,
+            receivedOptions.username,
         );
     })
     .then(() => {

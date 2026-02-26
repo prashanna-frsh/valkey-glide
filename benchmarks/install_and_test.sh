@@ -34,12 +34,15 @@ clientCount="1"
 chosenClients="all"
 host="localhost"
 port=6379
-tlsFlag="--tls"
+tlsFlag="--no-tls"
 dotnetFramework="net6.0"
+# password="bd8bb28db33ad274bfc9a264a7c58d56"
+# passwordFlag="--password $password"
+# usernameFlag=
+# portFlag="--port $port"
+# skipFlush=0
 
 function runAsyncPythonBenchmark(){
-  # generate protobuf files
-  protoc -Iprotobuf=${GLIDE_HOME_FOLDER}/glide-core/src/protobuf/ --python_out=${PYTHON_FOLDER}/python/glide ${GLIDE_HOME_FOLDER}/glide-core/src/protobuf/*.proto
   cd ${PYTHON_FOLDER}
   $pythonCommand -m venv .env
   source .env/bin/activate
@@ -48,15 +51,13 @@ function runAsyncPythonBenchmark(){
   echo "starting Python async benchmark"
   cd ${BENCH_FOLDER}/python
   $pythonCommand -m pip install --quiet -r requirements.txt
-  $pythonCommand python_async_benchmark.py --resultsFile=../$1 --dataSize $2 --concurrentTasks $concurrentTasks --clients $chosenClients --host $host --clientCount $clientCount $tlsFlag $clusterFlag $portFlag $minimalFlag
+  $pythonCommand python_async_benchmark.py --resultsFile=../$1 --dataSize $2 --concurrentTasks $concurrentTasks --clients $chosenClients --host $host --clientCount $clientCount $tlsFlag $clusterFlag $portFlag $passwordFlag $usernameFlag $minimalFlag
   # exit python virtualenv
   deactivate
   echo "done python async benchmark"
 }
 
 function runSyncPythonBenchmark(){
-  # generate protobuf files
-  protoc -Iprotobuf=${GLIDE_HOME_FOLDER}/glide-core/src/protobuf/ --python_out=${PYTHON_FOLDER}/python/glide ${GLIDE_HOME_FOLDER}/glide-core/src/protobuf/*.proto
   cd ${PYTHON_FOLDER}
   $pythonCommand -m venv .env
   source .env/bin/activate
@@ -65,7 +66,7 @@ function runSyncPythonBenchmark(){
   echo "Starting Python Sync benchmarks"
   cd ${BENCH_FOLDER}/python
   $pythonCommand -m pip install --quiet -r requirements.txt
-  $pythonCommand python_sync_benchmark.py --resultsFile=../$1 --dataSize $2 --concurrentTasks $concurrentTasks --clients $chosenClients --host $host --clientCount $clientCount $tlsFlag $clusterFlag $portFlag $minimalFlag
+  $pythonCommand python_sync_benchmark.py --resultsFile=../$1 --dataSize $2 --concurrentTasks $concurrentTasks --clients $chosenClients --host $host --clientCount $clientCount $tlsFlag $clusterFlag $portFlag $passwordFlag $usernameFlag $minimalFlag
   # exit python virtualenv
   deactivate
   echo "done python sync benchmark"
@@ -114,12 +115,16 @@ function flushDB() {
   cd $utilitiesDir
   npm install
   npx tsc
-  npm run flush -- --host $host $tlsFlag $clusterFlag $portFlag
+    if [ "$skipFlush" = "1" ]; then
+    echo "Skipping flush (use -no-flush when FLUSHALL is disabled, e.g. managed Redis)"
+  else
+    npm run flush -- --host $host $tlsFlag $clusterFlag $portFlag $passwordFlag $usernameFlag
+  fi
 }
 
 function fillDB(){
   flushDB
-  npm run fill -- --dataSize $1 --host $host $tlsFlag $clusterFlag $portFlag
+  npm run fill -- --dataSize $1 --host $host $tlsFlag $clusterFlag $portFlag $passwordFlag $usernameFlag
 }
 
 utilitiesDir=`pwd`/utilities
@@ -164,6 +169,7 @@ function Help() {
     echo The benchmark will connect to the server using transport level security \(TLS\) by default. Pass -no-tls to connect to server without TLS.
     echo By default, the benchmark runs against localhost. Pass -host and then the address of the requested Redis server in order to connect to a different server.
     echo By default, the benchmark runs against port 6379. Pass -port and then the port number in order to connect to a different port.
+    echo Pass -no-flush to skip flushing the database \(use when FLUSHALL is disabled, e.g. managed Redis/ElastiCache\).
     echo By default, the C# benchmark runs with 'net6.0' framework. Pass -dotnet-framework and then the framework version in order to use a different framework.
 }
 
@@ -268,8 +274,19 @@ do
             portFlag="--port "$2
             shift
             ;;
+        -password)
+            passwordFlag="--password $2"
+            shift
+            ;;
+        -username)
+            usernameFlag="--username $2"
+            shift
+            ;;
         -minimal)
             minimalFlag="--minimal"
+            ;;
+        -no-flush)
+            skipFlush=1
             ;;
         -dotnet-framework)
             dotnetFramework=$2

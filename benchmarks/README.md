@@ -1,6 +1,8 @@
 # Benchmarks
 
-[`install_and_test.sh`](./install_and_test.sh) is the benchmark script we use to check performance. run `install_and_test.sh -h` to get the full list of available flags.
+[`install_and_test.sh`](./install_and_test.sh) is the benchmark script we use to check performance. Run `install_and_test.sh -h` to get the full list of available flags.
+
+**Node.js:** The `benchmarks/utilities` scripts (fill_db, flush) require **Node.js 14 or newer** because the `redis` npm package uses optional chaining. Use `node -v` to check; upgrade with nvm or your system package manager if needed. If your server uses a non-default port, pass `--port <port>` (e.g. `npm run flush -- --host <host> --no-tls --port 30160`). On managed Redis (e.g. ElastiCache) where FLUSHALL is disabled, run the script with `-no-flush` to skip flush/fill (e.g. `./install_and_test.sh -no-flush -minimal`).
 
 The results of the benchmark runs will be written into .csv files in the `./results` folder.
 

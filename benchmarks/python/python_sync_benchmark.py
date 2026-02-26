@@ -17,6 +17,7 @@ from glide_sync import (
     Logger,
     LogLevel,
     NodeAddress,
+    ServerCredentials,
 )
 from utils import (
     ChosenAction,
@@ -33,6 +34,8 @@ from utils import (
 
 arguments_parser = create_argument_parser()
 args = arguments_parser.parse_args()
+if getattr(args, "no_tls", False):
+    args.tls = False
 
 started_tasks_counter = 0
 bench_json_results: List[str] = []
@@ -191,6 +194,8 @@ def main(
     client_count,
     use_tls,
     is_cluster,
+    password,
+    username,
 ):
     if clients_to_run == "all":
         client_class = redispy.RedisCluster if is_cluster else redispy.Redis
@@ -200,6 +205,8 @@ def main(
                 host=host,
                 port=port,
                 ssl=use_tls,
+                password=password,
+                username=username,
                 max_connections=num_of_concurrent_threads,
             ),
         )
@@ -220,17 +227,24 @@ def main(
 
     if clients_to_run == "all" or clients_to_run == "glide":
         client_class = GlideClusterClient if is_cluster else GlideClient
+        credentials = (
+            ServerCredentials(password=password, username=username)
+            if password is not None
+            else None
+        )
         config = (
             GlideClusterClientConfiguration(
                 [NodeAddress(host=host, port=port)],
                 use_tls=use_tls,
                 request_timeout=1000,
+                credentials=credentials,
             )
             if is_cluster
             else GlideClientConfiguration(
                 [NodeAddress(host=host, port=port)],
                 use_tls=use_tls,
                 request_timeout=1000,
+                credentials=credentials,
             )
         )
         clients = create_clients(
@@ -253,9 +267,12 @@ if __name__ == "__main__":
     clients_to_run = args.clients
     client_count = args.clientCount
     host = args.host
+
     use_tls = args.tls
     port = args.port
     is_cluster = args.clusterModeEnabled
+    password = args.password
+    username = args.username
 
     # Setting the internal logger to log every log that has a level of info and above,
     # and save the logs to a file with the name of the results file.
@@ -281,6 +298,8 @@ if __name__ == "__main__":
             number_of_clients,
             use_tls,
             is_cluster,
+            password,
+            username,
         )
 
     process_results(bench_json_results, args.resultsFile)

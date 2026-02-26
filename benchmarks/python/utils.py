@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+import os
 import random
 from enum import Enum
 from statistics import mean
@@ -55,6 +56,13 @@ def create_argument_parser():
         default=False,
     )
     parser.add_argument(
+        "--no-tls",
+        help="Connect without TLS (default)",
+        action="store_true",
+        required=False,
+        default=False,
+    )
+    parser.add_argument(
         "--clusterModeEnabled",
         help="Should benchmark a cluster mode enabled cluster",
         action="store_true",
@@ -67,6 +75,18 @@ def create_argument_parser():
         type=int,
         required=False,
         help="Which port to connect to, defaults to `%(default)s`",
+    )
+    parser.add_argument(
+        "--password",
+        help="Password for server authentication. Can also be set via REDIS_PASSWORD env var.",
+        required=False,
+        default=os.environ.get("REDIS_PASSWORD"),
+    )
+    parser.add_argument(
+        "--username",
+        help="Username for ACL authentication (optional).",
+        required=False,
+        default=None,
     )
     parser.add_argument(
         "--minimal", help="Should run a minimal benchmark", action="store_true"

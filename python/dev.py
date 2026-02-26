@@ -272,8 +272,8 @@ def build_async_client(
             "GLIDE_VERSION": glide_version,
         }
     )
-    install_glide_shared(env)
     generate_protobuf_files()
+    install_glide_shared(env)
 
     if wheel:
         return build_async_client_wheel(env, release, features)
@@ -332,7 +332,6 @@ def build_sync_client(
     print(
         f"[INFO] Building sync client with version={glide_version} in {'release' if release else 'debug'} mode..."
     )
-    generate_protobuf_files()
     env = activate_venv(no_cache)
     env = {
         "GLIDE_NAME": GLIDE_SYNC_NAME,
@@ -341,6 +340,9 @@ def build_sync_client(
     }
     if release:
         env["RELEASE_MODE"] = "1"
+
+    generate_protobuf_files()
+    install_glide_shared(env)
 
     # Optionally clean build artifacts
     if no_cache:

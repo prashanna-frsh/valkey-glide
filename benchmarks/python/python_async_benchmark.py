@@ -41,6 +41,8 @@ arguments_parser.add_argument(
     choices=["asyncio", "trio"],
 )
 args = arguments_parser.parse_args()
+if getattr(args, "no_tls", False):
+    args.tls = False
 
 if args.backend == "trio" and args.clients != "glide":
     raise ValueError("Trio backend is only supported on the 'glide' client")
