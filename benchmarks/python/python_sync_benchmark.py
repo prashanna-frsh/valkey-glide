@@ -197,7 +197,10 @@ def main(
     password,
     username,
 ):
-    if clients_to_run == "all":
+    # Use "default" username when password is set but username isn't (ACL compatibility)
+    auth_username = username if username is not None else ("default" if password else None)
+
+    if clients_to_run == "all" or clients_to_run == "redispy":
         client_class = redispy.RedisCluster if is_cluster else redispy.Redis
         clients = create_clients(
             client_count,
@@ -206,7 +209,7 @@ def main(
                 port=port,
                 ssl=use_tls,
                 password=password,
-                username=username,
+                username=auth_username,
                 max_connections=num_of_concurrent_threads,
             ),
         )
@@ -228,7 +231,7 @@ def main(
     if clients_to_run == "all" or clients_to_run == "glide":
         client_class = GlideClusterClient if is_cluster else GlideClient
         credentials = (
-            ServerCredentials(password=password, username=username)
+            ServerCredentials(password=password, username=auth_username)
             if password is not None
             else None
         )

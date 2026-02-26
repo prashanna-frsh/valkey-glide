@@ -36,11 +36,10 @@ host="localhost"
 port=6379
 tlsFlag="--no-tls"
 dotnetFramework="net6.0"
-# password="bd8bb28db33ad274bfc9a264a7c58d56"
-# passwordFlag="--password $password"
-# usernameFlag=
-# portFlag="--port $port"
-# skipFlush=0
+portFlag=
+passwordFlag=
+usernameFlag=
+skipFlush=0
 
 function runAsyncPythonBenchmark(){
   cd ${PYTHON_FOLDER}
@@ -164,7 +163,7 @@ function Help() {
     echo "         2 clients, 100 concurrent tasks and 20 bytes of data per value, "
     echo and the outputs will be saved to a file prefixed with \"foo\".
     echo
-    echo Pass -only-glide to only run GLIDE clients.
+    echo Pass -only-glide to only run GLIDE clients. Pass -only-redispy to only run redis-py \(Python\).
     echo Pass -is-cluster if the host is a Cluster server. Otherwise the server is assumed to be in standalone mode.
     echo The benchmark will connect to the server using transport level security \(TLS\) by default. Pass -no-tls to connect to server without TLS.
     echo By default, the benchmark runs against localhost. Pass -host and then the address of the requested Redis server in order to connect to a different server.
@@ -263,6 +262,9 @@ do
         -only-glide)
             chosenClients="glide"
             ;;
+        -only-redispy)
+            chosenClients="redispy"
+            ;;
         -no-csv) writeResultsCSV=0 ;;
         -no-tls)
             tlsFlag=
@@ -271,15 +273,15 @@ do
             clusterFlag="--clusterModeEnabled"
             ;;
         -port)
-            portFlag="--port "$2
+            portFlag="--port $2"
             shift
             ;;
         -password)
-            passwordFlag="--password $2"
+            passwordFlag="--password=$2"
             shift
             ;;
         -username)
-            usernameFlag="--username $2"
+            usernameFlag="--username=$2"
             shift
             ;;
         -minimal)

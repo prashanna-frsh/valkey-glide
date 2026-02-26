@@ -17,6 +17,7 @@ from glide import (
     Logger,
     LogLevel,
     NodeAddress,
+    ServerCredentials,
 )
 from utils import (
     ChosenAction,
@@ -195,13 +196,24 @@ async def main(
     client_count,
     use_tls,
     is_cluster,
+    password,
+    username,
 ):
-    if clients_to_run == "all":
+    # Use "default" username when password is set but username isn't (ACL compatibility)
+    auth_username = username if username is not None else ("default" if password else None)
+
+    if clients_to_run == "all" or clients_to_run == "redispy":
         client_class = redispy.RedisCluster if is_cluster else redispy.Redis
         clients = await create_clients(
             client_count,
             lambda: client_class(
-                host=host, port=port, decode_responses=True, ssl=use_tls
+                host=host,
+                port=port,
+                decode_responses=True,
+                ssl=use_tls,
+                password=password,
+                username=auth_username,
+                max_connections=num_of_concurrent_tasks,
             ),
         )
 
@@ -225,13 +237,22 @@ async def main(
     if clients_to_run == "all" or clients_to_run == "glide":
         # Glide Socket
         client_class = GlideClusterClient if is_cluster else GlideClient
+        credentials = (
+            ServerCredentials(password=password, username=auth_username)
+            if password is not None
+            else None
+        )
         config = (
             GlideClusterClientConfiguration(
-                [NodeAddress(host=host, port=port)], use_tls=use_tls
+                [NodeAddress(host=host, port=port)],
+                use_tls=use_tls,
+                credentials=credentials,
             )
             if is_cluster
             else GlideClientConfiguration(
-                [NodeAddress(host=host, port=port)], use_tls=use_tls
+                [NodeAddress(host=host, port=port)],
+                use_tls=use_tls,
+                credentials=credentials,
             )
         )
         clients = await create_clients(
@@ -258,6 +279,8 @@ if __name__ == "__main__":
     use_tls = args.tls
     port = args.port
     is_cluster = args.clusterModeEnabled
+    password = args.password
+    username = args.username
 
     # Setting the internal logger to log every log that has a level of info and above,
     # and save the logs to a file with the name of the results file.
@@ -285,6 +308,8 @@ if __name__ == "__main__":
             number_of_clients,
             use_tls,
             is_cluster,
+            password,
+            username,
             backend=args.backend,
         )
 
