@@ -60,8 +60,7 @@ public class JedisCompatClient implements SyncClient {
 
             jedisStandalonePool =
                     new JedisPool(
-                            connectionSettings.host,
-                            connectionSettings.port,
+                            new HostAndPort(connectionSettings.host, connectionSettings.port),
                             configBuilder.build());
         }
     }

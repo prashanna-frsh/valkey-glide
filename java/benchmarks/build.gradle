@@ -31,6 +31,7 @@ dependencies {
     implementation 'com.google.guava:guava:33.5.0-jre'
     implementation 'redis.clients:jedis:5.1.2'
     implementation project(':jedis-compatibility')
+    implementation group: 'org.apache.commons', name: 'commons-pool2', version: '2.12.1'
     implementation 'io.lettuce:lettuce-core:7.0.0.RELEASE'
     implementation 'io.lettuce:lettuce-core:7.0.0.RELEASE'
     implementation 'commons-cli:commons-cli:1.5.0'

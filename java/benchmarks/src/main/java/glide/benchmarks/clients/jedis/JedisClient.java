@@ -4,6 +4,7 @@ package glide.benchmarks.clients.jedis;
 import glide.benchmarks.clients.SyncClient;
 import glide.benchmarks.utils.ConnectionSettings;
 import java.util.Collections;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
@@ -57,8 +58,8 @@ public class JedisClient implements SyncClient {
 
             jedisStandalonePool =
                     new JedisPool(
-                            connectionSettings.host,
-                            connectionSettings.port,
+                            new GenericObjectPoolConfig<Jedis>(),
+                            new HostAndPort(connectionSettings.host, connectionSettings.port),
                             configBuilder.build());
         }
     }

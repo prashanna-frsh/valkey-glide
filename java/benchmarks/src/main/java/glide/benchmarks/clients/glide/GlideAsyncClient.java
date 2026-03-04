@@ -9,6 +9,7 @@ import glide.api.GlideClusterClient;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.GlideClusterClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
+import glide.api.models.configuration.ServerCredentials;
 import glide.benchmarks.clients.AsyncClient;
 import glide.benchmarks.utils.ConnectionSettings;
 import java.util.concurrent.CompletableFuture;
@@ -32,8 +33,15 @@ public class GlideAsyncClient implements AsyncClient<String> {
                                             .build())
                             .useTLS(connectionSettings.useSsl);
 
-            if (connectionSettings.username != null && connectionSettings.password != null) {
-                configBuilder.credentials(connectionSettings.username, connectionSettings.password);
+            if (connectionSettings.username != null || connectionSettings.password != null) {
+                ServerCredentials.ServerCredentialsBuilder credBuilder = ServerCredentials.builder();
+                if (connectionSettings.password != null) {
+                    credBuilder.password(connectionSettings.password);
+                }
+                if (connectionSettings.username != null) {
+                    credBuilder.username(connectionSettings.username);
+                }
+                configBuilder.credentials(credBuilder.build());
             }
 
             GlideClusterClientConfiguration config = configBuilder.build();
@@ -53,8 +61,15 @@ public class GlideAsyncClient implements AsyncClient<String> {
                                             .build())
                             .useTLS(connectionSettings.useSsl);
 
-            if (connectionSettings.username != null && connectionSettings.password != null) {
-                configBuilder.credentials(connectionSettings.username, connectionSettings.password);
+            if (connectionSettings.username != null || connectionSettings.password != null) {
+                ServerCredentials.ServerCredentialsBuilder credBuilder = ServerCredentials.builder();
+                if (connectionSettings.password != null) {
+                    credBuilder.password(connectionSettings.password);
+                }
+                if (connectionSettings.username != null) {
+                    credBuilder.username(connectionSettings.username);
+                }
+                configBuilder.credentials(credBuilder.build());
             }
 
             GlideClientConfiguration config = configBuilder.build();
