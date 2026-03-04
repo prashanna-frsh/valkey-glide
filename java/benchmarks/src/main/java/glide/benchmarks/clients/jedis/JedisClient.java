@@ -35,15 +35,31 @@ public class JedisClient implements SyncClient {
     public void connectToValkey(ConnectionSettings connectionSettings) {
         isClusterMode = connectionSettings.clusterMode;
         if (isClusterMode) {
+            DefaultJedisClientConfig.Builder configBuilder =
+                    DefaultJedisClientConfig.builder().ssl(connectionSettings.useSsl);
+
+            if (connectionSettings.username != null && connectionSettings.password != null) {
+                configBuilder.user(connectionSettings.username).password(connectionSettings.password);
+            }
+
             jedisCluster =
                     new JedisCluster(
                             Collections.singleton(
                                     new HostAndPort(connectionSettings.host, connectionSettings.port)),
-                            DefaultJedisClientConfig.builder().ssl(connectionSettings.useSsl).build());
+                            configBuilder.build());
         } else {
+            DefaultJedisClientConfig.Builder configBuilder =
+                    DefaultJedisClientConfig.builder().ssl(connectionSettings.useSsl);
+
+            if (connectionSettings.username != null && connectionSettings.password != null) {
+                configBuilder.user(connectionSettings.username).password(connectionSettings.password);
+            }
+
             jedisStandalonePool =
                     new JedisPool(
-                            connectionSettings.host, connectionSettings.port, connectionSettings.useSsl);
+                            connectionSettings.host,
+                            connectionSettings.port,
+                            configBuilder.build());
         }
     }
 

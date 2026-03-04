@@ -124,6 +124,18 @@ public class BenchmarkingApp {
                         .build());
         options.addOption(
                 Option.builder()
+                        .longOpt("username")
+                        .hasArg(true)
+                        .desc("Username for authentication []")
+                        .build());
+        options.addOption(
+                Option.builder()
+                        .longOpt("password")
+                        .hasArg(true)
+                        .desc("Password for authentication []")
+                        .build());
+        options.addOption(
+                Option.builder()
                         .longOpt("minimal")
                         .hasArg(false)
                         .desc("Run benchmark in minimal mode")
@@ -205,6 +217,14 @@ public class BenchmarkingApp {
         runConfiguration.minimal = line.hasOption("minimal");
         runConfiguration.debugLogging = line.hasOption("debugLogging");
 
+        if (line.hasOption("username")) {
+            runConfiguration.username = line.getOptionValue("username");
+        }
+
+        if (line.hasOption("password")) {
+            runConfiguration.password = line.getOptionValue("password");
+        }
+
         return runConfiguration;
     }
 
@@ -263,6 +283,8 @@ public class BenchmarkingApp {
         public boolean clusterModeEnabled;
         public boolean debugLogging = false;
         public boolean minimal = false;
+        public String username;
+        public String password;
 
         public RunConfiguration() {
             configuration = "Release";

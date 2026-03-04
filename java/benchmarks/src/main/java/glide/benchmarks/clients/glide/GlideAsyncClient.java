@@ -23,15 +23,20 @@ public class GlideAsyncClient implements AsyncClient<String> {
     public void connectToValkey(ConnectionSettings connectionSettings) {
 
         if (connectionSettings.clusterMode) {
-            GlideClusterClientConfiguration config =
+            GlideClusterClientConfiguration.GlideClusterClientConfigurationBuilder configBuilder =
                     GlideClusterClientConfiguration.builder()
                             .address(
                                     NodeAddress.builder()
                                             .host(connectionSettings.host)
                                             .port(connectionSettings.port)
                                             .build())
-                            .useTLS(connectionSettings.useSsl)
-                            .build();
+                            .useTLS(connectionSettings.useSsl);
+
+            if (connectionSettings.username != null && connectionSettings.password != null) {
+                configBuilder.credentials(connectionSettings.username, connectionSettings.password);
+            }
+
+            GlideClusterClientConfiguration config = configBuilder.build();
             try {
                 glideClient = GlideClusterClient.createClient(config).get(10, SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -39,15 +44,20 @@ public class GlideAsyncClient implements AsyncClient<String> {
             }
 
         } else {
-            GlideClientConfiguration config =
+            GlideClientConfiguration.GlideClientConfigurationBuilder configBuilder =
                     GlideClientConfiguration.builder()
                             .address(
                                     NodeAddress.builder()
                                             .host(connectionSettings.host)
                                             .port(connectionSettings.port)
                                             .build())
-                            .useTLS(connectionSettings.useSsl)
-                            .build();
+                            .useTLS(connectionSettings.useSsl);
+
+            if (connectionSettings.username != null && connectionSettings.password != null) {
+                configBuilder.credentials(connectionSettings.username, connectionSettings.password);
+            }
+
+            GlideClientConfiguration config = configBuilder.build();
 
             try {
                 glideClient = GlideClient.createClient(config).get(10, SECONDS);

@@ -24,12 +24,18 @@ public class LettuceAsyncClient implements AsyncClient<String> {
 
     @Override
     public void connectToValkey(ConnectionSettings connectionSettings) {
-        RedisURI uri =
+        RedisURI.Builder uriBuilder =
                 RedisURI.builder()
                         .withHost(connectionSettings.host)
                         .withPort(connectionSettings.port)
-                        .withSsl(connectionSettings.useSsl)
-                        .build();
+                        .withSsl(connectionSettings.useSsl);
+
+        if (connectionSettings.username != null && connectionSettings.password != null) {
+            uriBuilder.withAuthentication(connectionSettings.username, connectionSettings.password);
+        }
+
+        RedisURI uri = uriBuilder.build();
+
         if (!connectionSettings.clusterMode) {
             client = RedisClient.create(uri);
             connection = ((RedisClient) client).connect();

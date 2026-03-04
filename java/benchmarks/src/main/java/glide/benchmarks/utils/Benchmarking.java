@@ -139,7 +139,12 @@ public class Benchmarking {
                         Client newClient = clientCreator.get();
                         newClient.connectToValkey(
                                 new ConnectionSettings(
-                                        config.host, config.port, config.tls, config.clusterModeEnabled));
+                                        config.host,
+                                        config.port,
+                                        config.tls,
+                                        config.clusterModeEnabled,
+                                        config.username,
+                                        config.password));
                         clients.add(newClient);
                     }
 
