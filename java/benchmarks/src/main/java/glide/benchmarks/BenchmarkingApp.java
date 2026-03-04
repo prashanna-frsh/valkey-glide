@@ -5,6 +5,7 @@ import static glide.benchmarks.utils.Benchmarking.testClientSetGet;
 
 import glide.benchmarks.clients.glide.GlideAsyncClient;
 import glide.benchmarks.clients.jedis.JedisClient;
+import glide.benchmarks.clients.jediscompat.JedisCompatClient;
 import glide.benchmarks.clients.lettuce.LettuceAsyncClient;
 import java.util.Arrays;
 import java.util.Optional;
@@ -50,6 +51,10 @@ public class BenchmarkingApp {
                     System.out.println("Run JEDIS sync client");
                     testClientSetGet(JedisClient::new, runConfiguration, false);
                     break;
+                case JEDIS_COMPAT:
+                    System.out.println("Run JEDIS-COMPAT sync client");
+                    testClientSetGet(JedisCompatClient::new, runConfiguration, false);
+                    break;
                 case LETTUCE:
                     System.out.println("Run LETTUCE async client");
                     testClientSetGet(LettuceAsyncClient::new, runConfiguration, true);
@@ -58,6 +63,9 @@ public class BenchmarkingApp {
                     System.out.println("Valkey-GLIDE async client");
                     testClientSetGet(GlideAsyncClient::new, runConfiguration, true);
                     break;
+                case ALL:
+                    // ALL is expanded to individual clients in verifyOptions
+                    throw new IllegalStateException("ALL should be expanded before reaching this switch");
             }
         }
     }
@@ -95,7 +103,7 @@ public class BenchmarkingApp {
                 Option.builder()
                         .longOpt("clients")
                         .hasArg(true)
-                        .desc("one of: all|jedis|lettuce|glide")
+                        .desc("one of: all|jedis|jedis_compat|lettuce|glide")
                         .build());
         options.addOption(
                 Option.builder().longOpt("host").hasArg(true).desc("Hostname [localhost]").build());
@@ -164,7 +172,11 @@ public class BenchmarkingApp {
                                     e -> {
                                         switch (e) {
                                             case ALL:
-                                                return Stream.of(ClientName.JEDIS, ClientName.GLIDE, ClientName.LETTUCE);
+                                                return Stream.of(
+                                                        ClientName.JEDIS,
+                                                        ClientName.JEDIS_COMPAT,
+                                                        ClientName.GLIDE,
+                                                        ClientName.LETTUCE);
                                             default:
                                                 return Stream.of(e);
                                         }
@@ -217,6 +229,7 @@ public class BenchmarkingApp {
 
     public enum ClientName {
         JEDIS("Jedis"), // sync
+        JEDIS_COMPAT("Jedis-Compat"), // sync (jedis-compatibility layer backed by GLIDE)
         LETTUCE("Lettuce"), // async
         GLIDE("Glide"), // async
         ALL("All");
