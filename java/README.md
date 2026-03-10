@@ -465,14 +465,29 @@ Runs GLIDE client against a local cluster instance on port 52756 using data sizi
 ./gradlew run --args="--resultsFile=output --dataSize \"4000\" --concurrentTasks \"1000\" --clients glide --host 127.0.0.1 --port 52746 --clusterModeEnabled"
 ```
 
+Runs benchmarks against a custom host with authentication (e.g. authenticated cluster).
+```shell
+./gradlew run --args="--host my-valkey.example.com --port 30160 --username default --password mypassword --clients all"
+```
+
+With TLS and optional result file:
+```shell
+./gradlew run --args="--host my-valkey.example.com --port 6380 --username myuser --password mypassword --clusterModeEnabled --tls --resultsFile=output.json --clients all"
+```
+
 The following arguments are accepted:
 * `resultsFile`: the results output file
 * `concurrentTasks`: number of concurrent tasks
-* `clients`: one of: all|jedis|lettuce|glide
+* `clients`: one of: all|jedis|jedis_compat|lettuce|glide
 * `clientCount`: client count
 * `host`: Valkey server host url
 * `port`: Valkey server port number
 * `tls`: Valkey TLS configured
+* `username`: username for authentication
+* `password`: password for authentication
+
 
 ### Known issues
 * Conflict in netty and protobuf internal valkey glide dependencies with project dependencies using valkey glide. Issue link: https://github.com/valkey-io/valkey-glide/issues/3402. Workarounds mentioned in this issue: https://github.com/valkey-io/valkey-glide/issues/3367
+
+./gradlew run --args="--host primary-prestaging-black-testing-2.redis.internal-us-east-1 --port 30160 --username default --password bd8bb28db33ad274bfc9a264a7c58d56 --concurrentTasks 50 --clientCount 10 --resultsFile=output.json --clients jedis"
