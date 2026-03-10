@@ -5,6 +5,7 @@ import static glide.benchmarks.utils.Benchmarking.testClientSetGet;
 
 import glide.benchmarks.clients.glide.GlideAsyncClient;
 import glide.benchmarks.clients.jedis.JedisClient;
+import glide.benchmarks.clients.jedis.JedisCompatClient;
 import glide.benchmarks.clients.lettuce.LettuceAsyncClient;
 import java.util.Arrays;
 import java.util.Optional;
@@ -49,6 +50,10 @@ public class BenchmarkingApp {
                 case JEDIS:
                     System.out.println("Run JEDIS sync client");
                     testClientSetGet(JedisClient::new, runConfiguration, false);
+                    break;
+                case JEDIS_COMPAT:
+                    System.out.println("Run GLIDE jedis-compatibility client");
+                    testClientSetGet(JedisCompatClient::new, runConfiguration, false);
                     break;
                 case LETTUCE:
                     System.out.println("Run LETTUCE async client");
@@ -95,7 +100,7 @@ public class BenchmarkingApp {
                 Option.builder()
                         .longOpt("clients")
                         .hasArg(true)
-                        .desc("one of: all|jedis|lettuce|glide")
+                        .desc("one of: all|jedis|jedis_compat|lettuce|glide")
                         .build());
         options.addOption(
                 Option.builder().longOpt("host").hasArg(true).desc("Hostname [localhost]").build());
@@ -125,6 +130,18 @@ public class BenchmarkingApp {
                         .longOpt("debugLogging")
                         .hasArg(false)
                         .desc("Verbose logs [false]")
+                        .build());
+        options.addOption(
+                Option.builder()
+                        .longOpt("username")
+                        .hasArg(true)
+                        .desc("ACL username for authentication [null]")
+                        .build());
+        options.addOption(
+                Option.builder()
+                        .longOpt("password")
+                        .hasArg(true)
+                        .desc("Password for authentication [null]")
                         .build());
 
         return options;
@@ -164,7 +181,11 @@ public class BenchmarkingApp {
                                     e -> {
                                         switch (e) {
                                             case ALL:
-                                                return Stream.of(ClientName.JEDIS, ClientName.GLIDE, ClientName.LETTUCE);
+                                                return Stream.of(
+                                                        ClientName.JEDIS,
+                                                        ClientName.JEDIS_COMPAT,
+                                                        ClientName.GLIDE,
+                                                        ClientName.LETTUCE);
                                             default:
                                                 return Stream.of(e);
                                         }
@@ -193,6 +214,13 @@ public class BenchmarkingApp {
         runConfiguration.minimal = line.hasOption("minimal");
         runConfiguration.debugLogging = line.hasOption("debugLogging");
 
+        if (line.hasOption("username")) {
+            runConfiguration.username = line.getOptionValue("username");
+        }
+        if (line.hasOption("password")) {
+            runConfiguration.password = line.getOptionValue("password");
+        }
+
         return runConfiguration;
     }
 
@@ -216,7 +244,8 @@ public class BenchmarkingApp {
     }
 
     public enum ClientName {
-        JEDIS("Jedis"), // sync
+        JEDIS("Jedis"), // sync, real jedis
+        JEDIS_COMPAT("GlideJedisCompat"), // sync, GLIDE-backed via jedis-compatibility
         LETTUCE("Lettuce"), // async
         GLIDE("Glide"), // async
         ALL("All");
@@ -250,6 +279,8 @@ public class BenchmarkingApp {
         public boolean clusterModeEnabled;
         public boolean debugLogging = false;
         public boolean minimal = false;
+        public String username = null;
+        public String password = null;
 
         public RunConfiguration() {
             configuration = "Release";

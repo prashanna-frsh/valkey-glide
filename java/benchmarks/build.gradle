@@ -14,10 +14,14 @@ tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
+configurations {
+    jedisCompatDeps
+}
+
 dependencies {
     version = System.getenv("GLIDE_RELEASE_VERSION") ?: project.ext.defaultReleaseVersion
 
-    def classifier 
+    def classifier
     if (osdetector.os == 'linux' && osdetector.release.id == 'alpine') {
         classifier = "linux_musl-${osdetector.arch}"
     }
@@ -25,7 +29,7 @@ dependencies {
         classifier = osdetector.classifier
     }
     implementation "io.valkey:valkey-glide:${version}:${classifier}"
-        
+
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation 'com.google.guava:guava:33.5.0-jre'
@@ -36,11 +40,26 @@ dependencies {
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.20.0'
     implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
     implementation group: 'com.google.code.gson', name: 'gson', version: '2.13.2'
+
+    // Jedis-compatibility deps (separate config to avoid classpath conflict with real jedis)
+    jedisCompatDeps project(':jedis-compatibility')
 }
 
 if (!System.getenv("GLIDE_RELEASE_VERSION")) {
     compileJava.dependsOn ':client:publishToMavenLocal'
 }
+
+tasks.register('runWithJedisCompat', JavaExec) {
+    group = 'application'
+    description = 'Run benchmarks with jedis-compatibility (GLIDE-backed) instead of real jedis'
+    // Compiled benchmark classes + runtime deps (excluding real jedis) + jedis-compat
+    classpath = sourceSets.main.output + configurations.runtimeClasspath.filter {
+        !it.name.matches(/jedis-\d.*\.jar/)
+    } + configurations.jedisCompatDeps
+    mainClass = 'glide.benchmarks.BenchmarkingApp'
+    jvmArgs = applicationDefaultJvmArgs
+}
+runWithJedisCompat.dependsOn ':jedis-compatibility:jar'
 
 application {
     // Define the main class for the application.

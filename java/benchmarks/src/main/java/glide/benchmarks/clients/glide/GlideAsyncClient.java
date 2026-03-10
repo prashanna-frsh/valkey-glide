@@ -9,6 +9,7 @@ import glide.api.GlideClusterClient;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.GlideClusterClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
+import glide.api.models.configuration.ServerCredentials;
 import glide.benchmarks.clients.AsyncClient;
 import glide.benchmarks.utils.ConnectionSettings;
 import java.util.concurrent.CompletableFuture;
@@ -21,36 +22,49 @@ public class GlideAsyncClient implements AsyncClient<String> {
 
     @Override
     public void connectToValkey(ConnectionSettings connectionSettings) {
+        boolean hasCredentials =
+                connectionSettings.password != null || connectionSettings.username != null;
 
         if (connectionSettings.clusterMode) {
-            GlideClusterClientConfiguration config =
+            GlideClusterClientConfiguration.GlideClusterClientConfigurationBuilder<?, ?> builder =
                     GlideClusterClientConfiguration.builder()
                             .address(
                                     NodeAddress.builder()
                                             .host(connectionSettings.host)
                                             .port(connectionSettings.port)
                                             .build())
-                            .useTLS(connectionSettings.useSsl)
-                            .build();
+                            .useTLS(connectionSettings.useSsl);
+            if (hasCredentials) {
+                builder.credentials(
+                        ServerCredentials.builder()
+                                .username(connectionSettings.username)
+                                .password(connectionSettings.password)
+                                .build());
+            }
             try {
-                glideClient = GlideClusterClient.createClient(config).get(10, SECONDS);
+                glideClient = GlideClusterClient.createClient(builder.build()).get(10, SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw new RuntimeException(e);
             }
 
         } else {
-            GlideClientConfiguration config =
+            GlideClientConfiguration.GlideClientConfigurationBuilder<?, ?> builder =
                     GlideClientConfiguration.builder()
                             .address(
                                     NodeAddress.builder()
                                             .host(connectionSettings.host)
                                             .port(connectionSettings.port)
                                             .build())
-                            .useTLS(connectionSettings.useSsl)
-                            .build();
-
+                            .useTLS(connectionSettings.useSsl);
+            if (hasCredentials) {
+                builder.credentials(
+                        ServerCredentials.builder()
+                                .username(connectionSettings.username)
+                                .password(connectionSettings.password)
+                                .build());
+            }
             try {
-                glideClient = GlideClient.createClient(config).get(10, SECONDS);
+                glideClient = GlideClient.createClient(builder.build()).get(10, SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw new RuntimeException(e);
             }

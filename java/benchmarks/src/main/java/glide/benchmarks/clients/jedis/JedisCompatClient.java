@@ -6,30 +6,14 @@ import glide.benchmarks.utils.ConnectionSettings;
 import java.util.Collections;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
-import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPooled;
 
-/** A Jedis client with sync capabilities. See: https://github.com/redis/jedis */
-public class JedisClient implements SyncClient {
-    boolean isClusterMode;
-    private JedisPool jedisStandalonePool;
+/** A GLIDE jedis-compatibility client using the JedisPooled API */
+public class JedisCompatClient implements SyncClient {
+    private boolean isClusterMode;
+    private JedisPooled jedisPooled;
     private JedisCluster jedisCluster;
-
-    @Override
-    public void closeConnection() {
-        if (jedisCluster != null) {
-            jedisCluster.close();
-        }
-        if (jedisStandalonePool != null) {
-            jedisStandalonePool.close();
-        }
-    }
-
-    @Override
-    public String getName() {
-        return "jedis";
-    }
 
     @Override
     public void connectToValkey(ConnectionSettings connectionSettings) {
@@ -47,9 +31,7 @@ public class JedisClient implements SyncClient {
                                     new HostAndPort(connectionSettings.host, connectionSettings.port)),
                             config);
         } else {
-            jedisStandalonePool =
-                    new JedisPool(
-                            new HostAndPort(connectionSettings.host, connectionSettings.port), config);
+            jedisPooled = new JedisPooled(new HostAndPort(connectionSettings.host, connectionSettings.port), config);
         }
     }
 
@@ -58,9 +40,7 @@ public class JedisClient implements SyncClient {
         if (isClusterMode) {
             jedisCluster.set(key, value);
         } else {
-            try (Jedis jedis = jedisStandalonePool.getResource()) {
-                jedis.set(key, value);
-            }
+            jedisPooled.set(key, value);
         }
     }
 
@@ -69,9 +49,22 @@ public class JedisClient implements SyncClient {
         if (isClusterMode) {
             return jedisCluster.get(key);
         } else {
-            try (Jedis jedis = jedisStandalonePool.getResource()) {
-                return jedis.get(key);
-            }
+            return jedisPooled.get(key);
         }
+    }
+
+    @Override
+    public void closeConnection() {
+        if (jedisCluster != null) {
+            jedisCluster.close();
+        }
+        if (jedisPooled != null) {
+            jedisPooled.close();
+        }
+    }
+
+    @Override
+    public String getName() {
+        return "glide_jedis_compat";
     }
 }
