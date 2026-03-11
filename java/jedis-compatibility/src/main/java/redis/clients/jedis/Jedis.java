@@ -4,7 +4,6 @@ package redis.clients.jedis;
 import static glide.utils.Java8Utils.createMap;
 
 import glide.api.GlideClient;
-import glide.api.GlideClusterClient;
 import glide.api.models.GlideString;
 import glide.api.models.Script;
 import glide.api.models.commands.ExpireOptions;
@@ -1261,11 +1260,6 @@ public final class Jedis implements Closeable {
     @FunctionalInterface
     private interface GlideOperation<T> {
         T execute() throws InterruptedException, ExecutionException;
-    }
-
-    @FunctionalInterface
-    private interface GlideClusterOperation<T> {
-        T execute(GlideClusterClient clusterClient) throws InterruptedException, ExecutionException;
     }
 
     /**
