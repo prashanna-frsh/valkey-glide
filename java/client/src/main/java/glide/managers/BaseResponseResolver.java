@@ -10,6 +10,10 @@ import response.ResponseOuterClass.Response;
 /**
  * Response resolver responsible for evaluating the Valkey response object with a success or
  * failure.
+ *
+ * <p>Uses an explicit constructor instead of Lombok-generated members so the JNI-facing response
+ * path is easy to follow in stack traces; mention motivation in the PR description when this
+ * pattern changes.
  */
 public class BaseResponseResolver implements GlideExceptionCheckedFunction<Response, Object> {
 

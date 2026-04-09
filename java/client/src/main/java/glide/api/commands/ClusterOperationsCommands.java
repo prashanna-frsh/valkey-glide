@@ -5,6 +5,7 @@ import glide.api.models.commands.cluster.ClusterFailoverOptions;
 import glide.api.models.commands.cluster.ClusterResetOptions;
 import glide.api.models.commands.cluster.ClusterSetSlotOptions;
 import java.util.concurrent.CompletableFuture;
+import lombok.NonNull;
 
 /**
  * Supports commands for cluster operational control including failover, slot management, and epoch
@@ -45,7 +46,7 @@ public interface ClusterOperationsCommands {
      * assert result.equals("OK");
      * }</pre>
      */
-    CompletableFuture<String> clusterFailover(ClusterFailoverOptions options);
+    CompletableFuture<String> clusterFailover(@NonNull ClusterFailoverOptions options);
 
     /**
      * Manages the assignment of hash slots to nodes in the cluster. This command is used during
@@ -64,7 +65,7 @@ public interface ClusterOperationsCommands {
      * assert result.equals("OK");
      * }</pre>
      */
-    CompletableFuture<String> clusterSetSlot(long slot, ClusterSetSlotOptions options);
+    CompletableFuture<String> clusterSetSlot(long slot, @NonNull ClusterSetSlotOptions options);
 
     /**
      * Forces a node to increment its configuration epoch. This is an advanced command that should be
@@ -155,5 +156,5 @@ public interface ClusterOperationsCommands {
      * assert result.equals("OK");
      * }</pre>
      */
-    CompletableFuture<String> clusterReset(ClusterResetOptions options);
+    CompletableFuture<String> clusterReset(@NonNull ClusterResetOptions options);
 }

@@ -4055,23 +4055,25 @@ public class CommandTests {
     @MethodSource("getClients")
     @SneakyThrows
     public void cluster_management_commands_getkeysinslot(GlideClusterClient client) {
-        // Set some keys in specific slots
         String key1 = "{slot}key1";
         String key2 = "{slot}key2";
         String key3 = "{slot}key3";
+
+        ClusterValue<Object> slotData =
+                client.customCommand(new String[] {"CLUSTER", "KEYSLOT", key1}).get();
+        long slot = ((Number) slotData.getSingleValue()).longValue();
 
         client.set(key1, "value1").get();
         client.set(key2, "value2").get();
         client.set(key3, "value3").get();
 
-        // Calculate the slot for these keys (they all hash to the same slot due to {slot})
-        // We'll use a known slot value or get it from CLUSTER KEYSLOT if available
-        // For simplicity, we test that the command returns successfully
+        String[] keysInSlot = client.clusterGetKeysInSlot(slot, 100).get();
+        assertNotNull(keysInSlot);
+        List<String> keysList = Arrays.asList(keysInSlot);
+        assertTrue(keysList.contains(key1), "clusterGetKeysInSlot should return keys in the slot");
+        assertTrue(keysList.contains(key2));
+        assertTrue(keysList.contains(key3));
 
-        // Note: This test is basic because we can't easily predict the exact slot
-        // In a real test environment, you'd calculate the slot or use CLUSTER KEYSLOT first
-
-        // Clean up
         client.del(new String[] {key1, key2, key3}).get();
     }
 
@@ -4079,10 +4081,10 @@ public class CommandTests {
     @MethodSource("getClients")
     @SneakyThrows
     public void cluster_management_commands_bumpepoch(GlideClusterClient client) {
-        // Test CLUSTER BUMPEPOCH
-        String result = client.clusterBumpEpoch().get();
-        // Result should be either "BUMPED" or "STILL" (server may return from one or multiple nodes)
-        assertNotNull(result, "clusterBumpEpoch returned null");
+        String raw = client.clusterBumpEpoch().get();
+        assertNotNull(raw, "clusterBumpEpoch returned null");
+        String result = raw.trim();
+        assertFalse(result.isEmpty(), "clusterBumpEpoch returned blank");
         assertTrue(
                 "BUMPED".equalsIgnoreCase(result) || "STILL".equalsIgnoreCase(result),
                 "Expected BUMPED or STILL, got: " + result);
@@ -4136,23 +4138,26 @@ public class CommandTests {
     @MethodSource("getClients")
     @SneakyThrows
     public void cluster_management_batch_commands(GlideClusterClient client) {
-        // Test cluster management commands in batch
+        // READONLY/READWRITE only succeed on replica connections; omit them here so the batch is safe
+        // when commands are routed to primaries. See cluster_management_commands_readonly_readwrite.
         ClusterBatch batch = new ClusterBatch(false);
         batch.clusterSaveConfig();
         batch.clusterBumpEpoch();
-        batch.readonly();
-        batch.readwrite();
         batch.asking();
 
         Object[] results = client.exec(batch, false).get();
 
-        assertEquals(5, results.length);
-        // Non-atomic batch with no route: commands may be routed to different nodes, so order is not
-        // guaranteed
+        assertEquals(3, results.length);
         long okCount = Arrays.stream(results).filter(OK::equals).count();
         long bumpOrStillCount =
-                Arrays.stream(results).filter(r -> "BUMPED".equals(r) || "STILL".equals(r)).count();
-        assertEquals(4, okCount, "Expected 4 OK responses (SAVECONFIG, READONLY, READWRITE, ASKING)");
+                Arrays.stream(results)
+                        .filter(
+                                r ->
+                                        r instanceof String
+                                                && ("BUMPED".equalsIgnoreCase(((String) r).trim())
+                                                        || "STILL".equalsIgnoreCase(((String) r).trim())))
+                        .count();
+        assertEquals(2, okCount, "Expected 2 OK responses (SAVECONFIG, ASKING)");
         assertEquals(1, bumpOrStillCount, "Expected 1 BUMPED or STILL (CLUSTER BUMPEPOCH)");
     }
 
@@ -4166,17 +4171,21 @@ public class CommandTests {
 
         // Get cluster nodes to find a primary node ID
         String nodesOutput = client.customCommand(new String[] {"CLUSTER", "NODES"}).get().toString();
-        // Parse to find a primary node ID
         String[] lines = nodesOutput.split("\n");
         String primaryNodeId = null;
 
         for (String line : lines) {
-            if (line.contains("master")) {
-                String[] parts = line.split(" ");
-                if (parts.length > 0) {
-                    primaryNodeId = parts[0];
-                    break;
-                }
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            String[] parts = line.split(" ");
+            if (parts.length < 3) {
+                continue;
+            }
+            String flags = parts[2];
+            if (flags.contains("master") && !flags.contains("slave") && !flags.contains("replica")) {
+                primaryNodeId = parts[0];
+                break;
             }
         }
 
@@ -4207,8 +4216,11 @@ public class CommandTests {
         String nodeId = null;
 
         for (String line : lines) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
             String[] parts = line.split(" ");
-            if (parts.length > 0) {
+            if (parts.length > 0 && !parts[0].trim().isEmpty()) {
                 nodeId = parts[0];
                 break;
             }
@@ -4216,18 +4228,16 @@ public class CommandTests {
 
         assertNotNull(nodeId, "Should find at least one node");
 
-        // Test CLUSTER COUNT-FAILURE-REPORTS
         Long count = client.clusterCountFailureReports(nodeId).get();
         assertNotNull(count);
         assertTrue(count >= 0, "Failure report count should be non-negative");
 
-        // Test with route (ALL_NODES may return multi or single value depending on cluster size)
         ClusterValue<Long> countWithRoute = client.clusterCountFailureReports(nodeId, ALL_NODES).get();
         assertNotNull(countWithRoute);
         if (countWithRoute.hasMultiData()) {
-            for (Long value : countWithRoute.getMultiValue().values()) {
+            for (Object value : countWithRoute.getMultiValue().values()) {
                 assertNotNull(value);
-                assertTrue(value >= 0);
+                assertTrue(((Number) value).longValue() >= 0L);
             }
         } else {
             assertNotNull(countWithRoute.getSingleValue());

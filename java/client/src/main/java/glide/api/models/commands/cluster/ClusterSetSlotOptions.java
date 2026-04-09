@@ -2,6 +2,7 @@
 package glide.api.models.commands.cluster;
 
 import glide.api.GlideClusterClient;
+import java.util.Objects;
 import lombok.Getter;
 
 /**
@@ -21,7 +22,7 @@ public class ClusterSetSlotOptions {
      */
     private final String nodeId;
 
-    public ClusterSetSlotOptions(SlotAction action, String nodeId) {
+    private ClusterSetSlotOptions(SlotAction action, String nodeId) {
         this.action = action;
         this.nodeId = nodeId;
     }
@@ -33,7 +34,8 @@ public class ClusterSetSlotOptions {
      * @return A ClusterSetSlotOptions instance configured for importing.
      */
     public static ClusterSetSlotOptions importing(String nodeId) {
-        return new ClusterSetSlotOptions(SlotAction.IMPORTING, nodeId);
+        return new ClusterSetSlotOptions(
+                SlotAction.IMPORTING, Objects.requireNonNull(nodeId, "nodeId"));
     }
 
     /**
@@ -43,7 +45,8 @@ public class ClusterSetSlotOptions {
      * @return A ClusterSetSlotOptions instance configured for migrating.
      */
     public static ClusterSetSlotOptions migrating(String nodeId) {
-        return new ClusterSetSlotOptions(SlotAction.MIGRATING, nodeId);
+        return new ClusterSetSlotOptions(
+                SlotAction.MIGRATING, Objects.requireNonNull(nodeId, "nodeId"));
     }
 
     /**
@@ -62,7 +65,7 @@ public class ClusterSetSlotOptions {
      * @return A ClusterSetSlotOptions instance configured for node assignment.
      */
     public static ClusterSetSlotOptions node(String nodeId) {
-        return new ClusterSetSlotOptions(SlotAction.NODE, nodeId);
+        return new ClusterSetSlotOptions(SlotAction.NODE, Objects.requireNonNull(nodeId, "nodeId"));
     }
 
     /**

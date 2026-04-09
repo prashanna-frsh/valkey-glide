@@ -1827,9 +1827,9 @@ public class GlideClusterClient extends BaseClient
     }
 
     @Override
-    public CompletableFuture<String> clusterFailover(ClusterFailoverOptions options) {
-        String[] args = options == null ? new String[0] : options.toArgs();
-        return commandManager.submitNewCommand(ClusterFailover, args, this::handleStringResponse);
+    public CompletableFuture<String> clusterFailover(@NonNull ClusterFailoverOptions options) {
+        return commandManager.submitNewCommand(
+                ClusterFailover, options.toArgs(), this::handleStringResponse);
     }
 
     @Override
@@ -1865,9 +1865,9 @@ public class GlideClusterClient extends BaseClient
     }
 
     @Override
-    public CompletableFuture<String> clusterReset(ClusterResetOptions options) {
-        String[] args = options == null ? new String[0] : options.toArgs();
-        return commandManager.submitNewCommand(ClusterReset, args, this::handleStringResponse);
+    public CompletableFuture<String> clusterReset(@NonNull ClusterResetOptions options) {
+        return commandManager.submitNewCommand(
+                ClusterReset, options.toArgs(), this::handleStringResponse);
     }
 
     @Override
