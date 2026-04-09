@@ -337,7 +337,9 @@ async fn send_command(
     }
 
     // Process command arguments for compression if compression is enabled
-    if let Err(compression_error) = process_command_for_compression(&mut cmd, &client) {
+    if client.is_compression_enabled()
+        && let Err(compression_error) = process_command_for_compression(&mut cmd, &client)
+    {
         log_warn(
             "send_command",
             format!(
@@ -437,6 +439,11 @@ fn process_command_for_compression(
     let command_str = String::from_utf8_lossy(command_name).to_uppercase();
     let request_type = match command_str.as_str() {
         "SET" => crate::request_type::RequestType::Set,
+        "MSET" => crate::request_type::RequestType::MSet,
+        "MSETNX" => crate::request_type::RequestType::MSetNX,
+        "SETEX" => crate::request_type::RequestType::SetEx,
+        "PSETEX" => crate::request_type::RequestType::PSetEx,
+        "SETNX" => crate::request_type::RequestType::SetNX,
         _ => return Ok(()), // Unknown command, no compression needed
     };
 
