@@ -35,8 +35,6 @@ public class ClusterManagementCommandsTests {
     /** Total number of hash slots in a cluster. */
     private static final int TOTAL_CLUSTER_SLOTS = 16384;
 
-    private static GlideClusterClient client;
-
     /**
      * Count total slots from a shard's slots field. Supports both formats: flat list of integers
      * [start1, end1, start2, end2, ...] (Valkey 9.0+) and nested list of [start,end] arrays (older).
