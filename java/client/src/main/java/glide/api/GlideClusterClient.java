@@ -108,6 +108,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NonNull;
@@ -1434,7 +1435,7 @@ public class GlideClusterClient extends BaseClient
 
         private final String cursorHandle;
         private final boolean isFinished;
-        private boolean isClosed = false;
+        private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
         // This is for internal use only.
         public NativeClusterScanCursor(@NonNull String cursorHandle) {
@@ -1473,7 +1474,7 @@ public class GlideClusterClient extends BaseClient
         }
 
         private void internalClose() {
-            if (!isClosed) {
+            if (isClosed.compareAndSet(false, true)) {
                 try {
                     ClusterScanCursorResolver.releaseNativeCursor(cursorHandle);
                 } catch (Exception ex) {
@@ -1482,9 +1483,6 @@ public class GlideClusterClient extends BaseClient
                             "ClusterScanCursor",
                             () -> "Error releasing cursor " + cursorHandle,
                             ex);
-                } finally {
-                    // Mark the cursor as closed to avoid double-free (if close() gets called more than once).
-                    isClosed = true;
                 }
             }
         }
