@@ -4284,6 +4284,8 @@ public class GlideClusterClientTest {
         assertArrayEquals(keys, response.get());
     }
 
+    @SneakyThrows
+    @Test
     public void sunsubscribe_lazy_returns_success() {
         // setup
         CompletableFuture<Void> testResponse = new CompletableFuture<>();
