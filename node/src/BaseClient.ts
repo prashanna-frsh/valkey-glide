@@ -32,6 +32,7 @@ import {
     Boundary,
     ClosingError,
     ClusterBatchOptions,
+    CompressionConfiguration,
     ConfigurationError,
     ConnectionError,
     CoordOrigin, // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -283,6 +284,8 @@ import {
     createZUnionStore,
     dropOtelSpan,
     getStatistics,
+    compressionConfigToProtobuf,
+    validateCompressionConfiguration,
     valueFromSplitPointer,
 } from ".";
 import {
@@ -620,7 +623,9 @@ export type ReadFrom =
     | "AZAffinity"
     /** Spread the read requests among all nodes within the client's Availability Zone (AZ) in a round robin manner,
          prioritizing local replicas, then the local primary, and falling back to any replica or the primary if needed.*/
-    | "AZAffinityReplicasAndPrimary";
+    | "AZAffinityReplicasAndPrimary"
+    /** Spread the read requests between all nodes (primary and replicas) in a round robin manner.*/
+    | "allNodes";
 
 /**
  * Configuration settings for creating a client. Shared settings for standalone and cluster clients.
@@ -888,6 +893,21 @@ export interface BaseClientConfiguration {
      * ```
      */
     lazyConnect?: boolean;
+    /**
+     * Configuration for automatic compression of values.
+     * When enabled, values that meet the minimum size threshold will be
+     * automatically compressed before being sent to the server and
+     * decompressed when retrieved.
+     *
+     * @example
+     * ```typescript
+     * const client = await GlideClient.createClient({
+     *   addresses: [{ host: "localhost", port: 6379 }],
+     *   compression: { enabled: true },
+     * });
+     * ```
+     */
+    compression?: CompressionConfiguration;
 }
 
 /**
@@ -4388,7 +4408,7 @@ export class BaseClient {
 
     /** Gets the intersection of all the given sets.
      *
-     * @see {@link https://valkey.io/docs/latest/commands/sinter/|valkey.io} for more details.
+     * @see {@link https://valkey.io/commands/sinter/|valkey.io} for more details.
      * @remarks When in cluster mode, all `keys` must map to the same hash slot.
      *
      * @param keys - The `keys` of the sets to get the intersection.
@@ -7521,6 +7541,7 @@ export class BaseClient {
         AZAffinity: connection_request.ReadFrom.AZAffinity,
         AZAffinityReplicasAndPrimary:
             connection_request.ReadFrom.AZAffinityReplicasAndPrimary,
+        allNodes: connection_request.ReadFrom.AllNodes,
     };
 
     /**
@@ -9258,7 +9279,7 @@ export class BaseClient {
             );
         }
 
-        return {
+        const request: connection_request.IConnectionRequest = {
             protocol,
             clientName: options.clientName,
             addresses: options.addresses,
@@ -9275,6 +9296,16 @@ export class BaseClient {
             connectionRetryStrategy: options.connectionBackoff,
             lazyConnect: options.lazyConnect ?? false,
         };
+
+        if (options.compression) {
+            validateCompressionConfiguration(options.compression);
+            request.compressionConfig = compressionConfigToProtobuf(
+                options.compression,
+                connection_request,
+            );
+        }
+
+        return request;
     }
 
     /**
