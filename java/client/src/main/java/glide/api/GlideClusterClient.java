@@ -1903,6 +1903,7 @@ public class GlideClusterClient extends BaseClient
                                 : ClusterValue.of(handleMapResponse(response)));
     }
 
+    @Override
     public CompletableFuture<String> clusterInfo() {
         return commandManager.submitNewCommand(ClusterInfo, new String[0], this::handleStringResponse);
     }
@@ -1927,6 +1928,7 @@ public class GlideClusterClient extends BaseClient
                 response -> castArray(handleArrayResponse(response), String.class));
     }
 
+    @Override
     public CompletableFuture<String> clusterNodes() {
         return commandManager.submitNewCommand(ClusterNodes, new String[0], this::handleStringResponse);
     }

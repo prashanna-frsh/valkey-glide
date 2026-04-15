@@ -22,17 +22,13 @@ public enum ClusterFailoverOptions {
      */
     TAKEOVER;
 
-    // Pre-allocated argument arrays to reduce allocations
-    private static final String[] FORCE_ARGS = new String[] {"FORCE"};
-    private static final String[] TAKEOVER_ARGS = new String[] {"TAKEOVER"};
-
     /**
-     * Returns the command arguments for this failover option. Uses pre-allocated arrays to reduce GC
-     * pressure.
+     * Returns a new array containing the failover subcommand for {@code CLUSTER FAILOVER}. Callers
+     * may mutate the returned array without affecting other users or internal state.
      *
      * @return Array containing the failover option as a string argument
      */
     public String[] toArgs() {
-        return this == FORCE ? FORCE_ARGS : TAKEOVER_ARGS;
+        return new String[] {name()};
     }
 }
