@@ -30,7 +30,7 @@ class StandaloneCommands(CoreCommands):
     def custom_command(self, command_args: List[TEncodable]) -> TResult:
         """
         Executes a single command, without checking inputs.
-        See the [Valkey GLIDE Wiki](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#custom-command)
+        See the [Valkey GLIDE Documentation](https://glide.valkey.io/concepts/client-features/custom-commands/)
         for details on the restrictions and limitations of the custom command API.
 
         This function should only be used for single-response commands. Commands that don't return complete response and awaits
@@ -527,7 +527,7 @@ class StandaloneCommands(CoreCommands):
         """
         Returns the serialized payload of all loaded libraries.
 
-        See [valkey.io](https://valkey.io/docs/latest/commands/function-dump/) for more details.
+        See [valkey.io](https://valkey.io/commands/function-dump/) for more details.
 
         Returns:
             bytes: The serialized payload of all loaded libraries.
@@ -549,7 +549,7 @@ class StandaloneCommands(CoreCommands):
         """
         Restores libraries from the serialized payload returned by the `function_dump` command.
 
-        See [valkey.io](https://valkey.io/docs/latest/commands/function-restore/) for more details.
+        See [valkey.io](https://valkey.io/commands/function-restore/) for more details.
 
         Args:
             payload (TEncodable): The serialized data from the `function_dump` command.

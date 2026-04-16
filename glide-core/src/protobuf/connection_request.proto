@@ -12,6 +12,7 @@ enum ReadFrom {
     LowestLatency = 2;
     AZAffinity = 3;
     AZAffinityReplicasAndPrimary = 4;
+    AllNodes = 5;
 }
 
 enum TlsMode {
@@ -107,6 +108,7 @@ message ConnectionRequest {
     bytes client_key = 23;
     optional bool tcp_nodelay = 24;
     optional uint32 pubsub_reconciliation_interval_ms = 25;
+    optional bool read_only = 26;
 }
 
 message ConnectionRetryStrategy {

@@ -24,6 +24,9 @@ enum ReadFrom {
     PreferReplica {
         latest_read_replica_index: Arc<AtomicUsize>,
     },
+    AllNodes {
+        latest_read_node_index: Arc<AtomicUsize>,
+    },
     AZAffinity {
         client_az: String,
         last_read_replica_index: Arc<AtomicUsize>,
@@ -40,6 +43,8 @@ struct DropWrapper {
     primary_index: usize,
     nodes: Vec<ReconnectingConnection>,
     read_from: ReadFrom,
+    /// When true, write commands are blocked and INFO REPLICATION is skipped during connection.
+    read_only: bool,
 }
 
 impl Drop for DropWrapper {
@@ -119,6 +124,23 @@ impl StandaloneClient {
     ) -> Result<Self, StandaloneClientConnectionError> {
         if connection_request.addresses.is_empty() {
             return Err(StandaloneClientConnectionError::NoAddressesProvided);
+        }
+
+        // Validate read_only mode is not combined with AZAffinity strategies
+        if connection_request.read_only
+            && matches!(
+                connection_request.read_from,
+                Some(ClientReadFrom::AZAffinity(_))
+                    | Some(ClientReadFrom::AZAffinityReplicasAndPrimary(_))
+            )
+        {
+            return Err(StandaloneClientConnectionError::FailedConnection(vec![(
+                None,
+                RedisError::from((
+                    redis::ErrorKind::InvalidClientConfig,
+                    "read-only mode is not compatible with AZAffinity strategies",
+                )),
+            )]));
         }
 
         let valkey_connection_info =
@@ -201,7 +223,13 @@ impl StandaloneClient {
             None
         };
 
-        let mut stream = stream::iter(connection_request.addresses.into_iter())
+        let read_only = connection_request.read_only;
+        let addresses = connection_request.addresses.clone();
+        let read_from_option = connection_request.read_from.clone();
+
+        let iam_token_handle = iam_token_manager.map(|m| m.get_token_handle());
+
+        let mut stream = stream::iter(addresses.into_iter())
             .map(move |address| {
                 let info = valkey_connection_info.clone();
                 let retry = retry_strategy;
@@ -212,10 +240,22 @@ impl StandaloneClient {
                 let params = tls_params.clone();
                 let nodelay = tcp_nodelay;
                 let sync = pubsub_synchronizer.clone();
+                let skip_replication = read_only;
+                let iam_handle = iam_token_handle.clone();
                 async move {
                     get_connection_and_replication_info(
-                        &address, &retry, &info, tls, &sender, discover, timeout, params, nodelay,
+                        &address,
+                        &retry,
+                        &info,
+                        tls,
+                        &sender,
+                        discover,
+                        timeout,
+                        params,
+                        nodelay,
                         &sync,
+                        skip_replication,
+                        iam_handle,
                     )
                     .await
                     .map_err(|err| (format!("{}:{}", address.host, address.port), err))
@@ -225,21 +265,26 @@ impl StandaloneClient {
 
         let mut nodes = Vec::with_capacity(node_count);
         let mut addresses_and_errors = Vec::with_capacity(node_count);
-        let mut primary_index = None;
+        let mut primary_index = if read_only { Some(0) } else { None };
+
         while let Some(result) = stream.next().await {
             match result {
                 Ok((connection, replication_status)) => {
                     nodes.push(connection);
-                    if redis::from_owned_redis_value::<String>(replication_status)
-                        .is_ok_and(|val| val.contains("role:master"))
-                    {
-                        if let Some(primary_index) = primary_index {
+                    // Only check for primary in normal mode (when replication_status is Some)
+                    // and the node reports role:master
+                    let is_primary = replication_status
+                        .and_then(|status| redis::from_owned_redis_value::<String>(status).ok())
+                        .is_some_and(|val| val.contains("role:master"));
+
+                    if is_primary {
+                        if let Some(existing_primary) = primary_index {
                             // More than one primary found
                             return Err(StandaloneClientConnectionError::PrimaryConflictFound(
                                 format!(
                                     "Primary nodes: {:?}, {:?}",
                                     nodes.pop(),
-                                    nodes.get(primary_index)
+                                    nodes.get(existing_primary)
                                 ),
                             ));
                         }
@@ -253,20 +298,38 @@ impl StandaloneClient {
             }
         }
 
-        let Some(primary_index) = primary_index else {
-            if addresses_and_errors.is_empty() {
-                addresses_and_errors.insert(
-                    0,
-                    (
-                        None,
-                        RedisError::from((redis::ErrorKind::ClientError, "No primary node found")),
-                    ),
-                )
-            };
-            return Err(StandaloneClientConnectionError::FailedConnection(
-                addresses_and_errors,
-            ));
+        // Validate we have required connections
+        let primary_index = if read_only {
+            // In read-only mode, we need at least one successful connection
+            if nodes.is_empty() && !addresses_and_errors.is_empty() {
+                return Err(StandaloneClientConnectionError::FailedConnection(
+                    addresses_and_errors,
+                ));
+            }
+            0 // primary_index won't be used for writes in read-only mode
+        } else {
+            // Normal mode requires a primary
+            match primary_index {
+                Some(idx) => idx,
+                None => {
+                    let mut errors = addresses_and_errors;
+                    if errors.is_empty() {
+                        errors.insert(
+                            0,
+                            (
+                                None,
+                                RedisError::from((
+                                    redis::ErrorKind::ClientError,
+                                    "No primary node found",
+                                )),
+                            ),
+                        )
+                    };
+                    return Err(StandaloneClientConnectionError::FailedConnection(errors));
+                }
+            }
         };
+
         if !addresses_and_errors.is_empty() {
             log_warn(
                 "client creation",
@@ -275,7 +338,14 @@ impl StandaloneClient {
                 ),
             );
         }
-        let read_from = get_read_from(connection_request.read_from);
+        let read_from = if read_only && read_from_option.is_none() {
+            // Default to PreferReplica when read_only=true and no ReadFrom specified
+            ReadFrom::PreferReplica {
+                latest_read_replica_index: Default::default(),
+            }
+        } else {
+            get_read_from(read_from_option)
+        };
 
         #[cfg(feature = "standalone_heartbeat")]
         for node in nodes.iter() {
@@ -294,6 +364,7 @@ impl StandaloneClient {
                 primary_index,
                 nodes,
                 read_from,
+                read_only,
             }),
         })
     }
@@ -324,6 +395,35 @@ impl StandaloneClient {
             };
             if connection.is_connected() {
                 let _ = latest_read_replica_index.compare_exchange_weak(
+                    initial_index,
+                    index,
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                );
+                return connection;
+            }
+        }
+    }
+
+    fn round_robin_read_from_all_nodes(
+        &self,
+        latest_read_node_index: &Arc<AtomicUsize>,
+    ) -> &ReconnectingConnection {
+        let initial_index = latest_read_node_index.load(Ordering::Relaxed);
+        let mut check_count = 0;
+        loop {
+            check_count += 1;
+
+            // Looped through all nodes, no connected node was found.
+            if check_count > self.inner.nodes.len() {
+                return self.get_primary_connection();
+            }
+            let index = (initial_index + check_count) % self.inner.nodes.len();
+            let Some(connection) = self.inner.nodes.get(index) else {
+                continue;
+            };
+            if connection.is_connected() {
+                let _ = latest_read_node_index.compare_exchange_weak(
                     initial_index,
                     index,
                     Ordering::Relaxed,
@@ -430,6 +530,9 @@ impl StandaloneClient {
             ReadFrom::PreferReplica {
                 latest_read_replica_index,
             } => self.round_robin_read_from_replica(latest_read_replica_index),
+            ReadFrom::AllNodes {
+                latest_read_node_index,
+            } => self.round_robin_read_from_all_nodes(latest_read_node_index),
             ReadFrom::AZAffinity {
                 client_az,
                 last_read_replica_index,
@@ -556,6 +659,14 @@ impl StandaloneClient {
         let Some(cmd_bytes) = Routable::command(cmd) else {
             return self.send_request_to_single_node(cmd, false).await;
         };
+
+        // Block write commands in read-only mode
+        if self.inner.read_only && !is_readonly_cmd(cmd_bytes.as_slice()) {
+            return Err(RedisError::from((
+                redis::ErrorKind::ReadOnly,
+                "write commands are not allowed in read-only mode",
+            )));
+        }
 
         if RoutingInfo::is_all_nodes(cmd_bytes.as_slice()) {
             let response_policy = ResponsePolicy::for_command(cmd_bytes.as_slice());
@@ -758,7 +869,9 @@ async fn get_connection_and_replication_info(
     tls_params: Option<redis::TlsConnParams>,
     tcp_nodelay: bool,
     pubsub_synchronizer: &Option<Arc<dyn crate::pubsub::PubSubSynchronizer>>,
-) -> Result<(ReconnectingConnection, Value), (ReconnectingConnection, RedisError)> {
+    skip_replication_check: bool,
+    iam_token_handle: Option<super::IAMTokenHandle>,
+) -> Result<(ReconnectingConnection, Option<Value>), (ReconnectingConnection, RedisError)> {
     let reconnecting_connection = ReconnectingConnection::new(
         address,
         *retry_strategy,
@@ -770,6 +883,7 @@ async fn get_connection_and_replication_info(
         tls_params,
         tcp_nodelay,
         pubsub_synchronizer.clone(),
+        iam_token_handle,
     )
     .await?;
 
@@ -781,11 +895,16 @@ async fn get_connection_and_replication_info(
         }
     };
 
+    // Skip INFO REPLICATION in read-only mode
+    if skip_replication_check {
+        return Ok((reconnecting_connection, None));
+    }
+
     match multiplexed_connection
         .send_packed_command(redis::cmd("INFO").arg("REPLICATION"))
         .await
     {
-        Ok(replication_status) => Ok((reconnecting_connection, replication_status)),
+        Ok(replication_status) => Ok((reconnecting_connection, Some(replication_status))),
         Err(err) => Err((reconnecting_connection, err)),
     }
 }
@@ -795,6 +914,9 @@ fn get_read_from(read_from: Option<super::ReadFrom>) -> ReadFrom {
         Some(super::ReadFrom::Primary) => ReadFrom::Primary,
         Some(super::ReadFrom::PreferReplica) => ReadFrom::PreferReplica {
             latest_read_replica_index: Default::default(),
+        },
+        Some(super::ReadFrom::AllNodes) => ReadFrom::AllNodes {
+            latest_read_node_index: Default::default(),
         },
         Some(super::ReadFrom::AZAffinity(az)) => ReadFrom::AZAffinity {
             client_az: az,

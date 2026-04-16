@@ -73,9 +73,12 @@ from .commands.server_modules.ft_options.ft_profile_options import (
     QueryType,
 )
 from .commands.server_modules.ft_options.ft_search_options import (
+    ConsistencyMode,
     FtSearchLimit,
     FtSearchOptions,
+    InfoScope,
     ReturnField,
+    ShardScope,
 )
 from .commands.server_modules.json_options import (
     JsonArrIndexOptions,
@@ -132,6 +135,9 @@ from .config import (
     TlsAdvancedConfiguration,
 )
 from .constants import (
+    ALL_CHANNELS,
+    ALL_PATTERNS,
+    ALL_SHARDED_CHANNELS,
     OK,
     TOK,
     FtAggregateResponse,
@@ -283,6 +289,9 @@ __all__ = [
     "UpdateOptions",
     # PubSub
     "PubSubMsg",
+    "ALL_CHANNELS",
+    "ALL_PATTERNS",
+    "ALL_SHARDED_CHANNELS",
     # Json
     "json_batch",
     "JsonGetOptions",
@@ -325,6 +334,9 @@ __all__ = [
     "FtSearchLimit",
     "ReturnField",
     "FtSearchOptions",
+    "InfoScope",
+    "ShardScope",
+    "ConsistencyMode",
     "FtAggregateApply",
     "FtAggregateFilter",
     "FtAggregateClause",

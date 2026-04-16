@@ -10,6 +10,9 @@ from glide.glide import (
     get_min_compressed_size,
 )
 from glide_shared import (
+    ALL_CHANNELS,
+    ALL_PATTERNS,
+    ALL_SHARDED_CHANNELS,
     OK,
     TOK,
     AdvancedGlideClientConfiguration,
@@ -43,6 +46,7 @@ from glide_shared import (
     ConditionalChange,
     ConfigurationError,
     ConnectionError,
+    ConsistencyMode,
     DataType,
     DistanceMetricType,
     ExclusiveIdBound,
@@ -85,6 +89,7 @@ from glide_shared import (
     IamAuthConfig,
     IdBound,
     InfBound,
+    InfoScope,
     InfoSection,
     InsertPosition,
     JsonArrIndexOptions,
@@ -121,6 +126,7 @@ from glide_shared import (
     ScoreFilter,
     ServerCredentials,
     ServiceType,
+    ShardScope,
     SignedEncoding,
     SlotIdRoute,
     SlotKeyRoute,
@@ -164,9 +170,6 @@ from glide_shared import (
 )
 
 from .async_commands import (
-    ALL_CHANNELS,
-    ALL_PATTERNS,
-    ALL_SHARDED_CHANNELS,
     ft,
     glide_json,
 )
@@ -392,6 +395,9 @@ __all__ = [
     "FtSearchLimit",
     "ReturnField",
     "FtSearchOptions",
+    "InfoScope",
+    "ShardScope",
+    "ConsistencyMode",
     "FtAggregateApply",
     "FtAggregateFilter",
     "FtAggregateClause",
