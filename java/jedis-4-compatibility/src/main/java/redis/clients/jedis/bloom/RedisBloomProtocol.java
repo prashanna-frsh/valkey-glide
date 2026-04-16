@@ -11,148 +11,148 @@ import redis.clients.jedis.commands.ProtocolCommand;
  */
 public class RedisBloomProtocol {
 
-	public enum BloomFilterCommand implements ProtocolCommand {
-		RESERVE("BF.RESERVE"),
-		ADD("BF.ADD"),
-		MADD("BF.MADD"),
-		EXISTS("BF.EXISTS"),
-		MEXISTS("BF.MEXISTS"),
-		INSERT("BF.INSERT"),
-		SCANDUMP("BF.SCANDUMP"),
-		LOADCHUNK("BF.LOADCHUNK"),
-		CARD("BF.CARD"),
-		INFO("BF.INFO");
+    public enum BloomFilterCommand implements ProtocolCommand {
+        RESERVE("BF.RESERVE"),
+        ADD("BF.ADD"),
+        MADD("BF.MADD"),
+        EXISTS("BF.EXISTS"),
+        MEXISTS("BF.MEXISTS"),
+        INSERT("BF.INSERT"),
+        SCANDUMP("BF.SCANDUMP"),
+        LOADCHUNK("BF.LOADCHUNK"),
+        CARD("BF.CARD"),
+        INFO("BF.INFO");
 
-		private final byte[] raw;
+        private final byte[] raw;
 
-		BloomFilterCommand(String alt) {
-			raw = alt.getBytes(StandardCharsets.UTF_8);
-		}
+        BloomFilterCommand(String alt) {
+            raw = alt.getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public byte[] getRaw() {
-			return raw.clone(); // ✅ Return defensive copy to prevent external modification
-		}
-	}
+        @Override
+        public byte[] getRaw() {
+            return raw.clone(); // ✅ Return defensive copy to prevent external modification
+        }
+    }
 
-	public enum CuckooFilterCommand implements ProtocolCommand {
-		RESERVE("CF.RESERVE"),
-		ADD("CF.ADD"),
-		ADDNX("CF.ADDNX"),
-		INSERT("CF.INSERT"),
-		INSERTNX("CF.INSERTNX"),
-		EXISTS("CF.EXISTS"),
-		MEXISTS("CF.MEXISTS"),
-		DEL("CF.DEL"),
-		COUNT("CF.COUNT"),
-		SCANDUMP("CF.SCANDUMP"),
-		LOADCHUNK("CF.LOADCHUNK"),
-		INFO("CF.INFO");
+    public enum CuckooFilterCommand implements ProtocolCommand {
+        RESERVE("CF.RESERVE"),
+        ADD("CF.ADD"),
+        ADDNX("CF.ADDNX"),
+        INSERT("CF.INSERT"),
+        INSERTNX("CF.INSERTNX"),
+        EXISTS("CF.EXISTS"),
+        MEXISTS("CF.MEXISTS"),
+        DEL("CF.DEL"),
+        COUNT("CF.COUNT"),
+        SCANDUMP("CF.SCANDUMP"),
+        LOADCHUNK("CF.LOADCHUNK"),
+        INFO("CF.INFO");
 
-		private final byte[] raw;
+        private final byte[] raw;
 
-		CuckooFilterCommand(String alt) {
-			raw = alt.getBytes(StandardCharsets.UTF_8);
-		}
+        CuckooFilterCommand(String alt) {
+            raw = alt.getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public byte[] getRaw() {
-			return raw.clone(); // ✅ Return defensive copy to prevent external modification
-		}
-	}
+        @Override
+        public byte[] getRaw() {
+            return raw.clone(); // ✅ Return defensive copy to prevent external modification
+        }
+    }
 
-	public enum CountMinSketchCommand implements ProtocolCommand {
-		INITBYDIM("CMS.INITBYDIM"),
-		INITBYPROB("CMS.INITBYPROB"),
-		INCRBY("CMS.INCRBY"),
-		QUERY("CMS.QUERY"),
-		MERGE("CMS.MERGE"),
-		INFO("CMS.INFO");
+    public enum CountMinSketchCommand implements ProtocolCommand {
+        INITBYDIM("CMS.INITBYDIM"),
+        INITBYPROB("CMS.INITBYPROB"),
+        INCRBY("CMS.INCRBY"),
+        QUERY("CMS.QUERY"),
+        MERGE("CMS.MERGE"),
+        INFO("CMS.INFO");
 
-		private final byte[] raw;
+        private final byte[] raw;
 
-		CountMinSketchCommand(String alt) {
-			raw = alt.getBytes(StandardCharsets.UTF_8);
-		}
+        CountMinSketchCommand(String alt) {
+            raw = alt.getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public byte[] getRaw() {
-			return raw.clone(); // ✅ Return defensive copy to prevent external modification
-		}
-	}
+        @Override
+        public byte[] getRaw() {
+            return raw.clone(); // ✅ Return defensive copy to prevent external modification
+        }
+    }
 
-	public enum TopKCommand implements ProtocolCommand {
-		RESERVE("TOPK.RESERVE"),
-		ADD("TOPK.ADD"),
-		INCRBY("TOPK.INCRBY"),
-		QUERY("TOPK.QUERY"),
-		COUNT("TOPK.COUNT"),
-		LIST("TOPK.LIST"),
-		INFO("TOPK.INFO");
+    public enum TopKCommand implements ProtocolCommand {
+        RESERVE("TOPK.RESERVE"),
+        ADD("TOPK.ADD"),
+        INCRBY("TOPK.INCRBY"),
+        QUERY("TOPK.QUERY"),
+        COUNT("TOPK.COUNT"),
+        LIST("TOPK.LIST"),
+        INFO("TOPK.INFO");
 
-		private final byte[] raw;
+        private final byte[] raw;
 
-		TopKCommand(String alt) {
-			raw = alt.getBytes(StandardCharsets.UTF_8);
-		}
+        TopKCommand(String alt) {
+            raw = alt.getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public byte[] getRaw() {
-			return raw.clone(); // ✅ Return defensive copy to prevent external modification
-		}
-	}
+        @Override
+        public byte[] getRaw() {
+            return raw.clone(); // ✅ Return defensive copy to prevent external modification
+        }
+    }
 
-	public enum TDigestCommand implements ProtocolCommand {
-		CREATE,
-		INFO,
-		ADD,
-		RESET,
-		MERGE,
-		CDF,
-		QUANTILE,
-		MIN,
-		MAX,
-		TRIMMED_MEAN,
-		RANK,
-		REVRANK,
-		BYRANK,
-		BYREVRANK;
+    public enum TDigestCommand implements ProtocolCommand {
+        CREATE,
+        INFO,
+        ADD,
+        RESET,
+        MERGE,
+        CDF,
+        QUANTILE,
+        MIN,
+        MAX,
+        TRIMMED_MEAN,
+        RANK,
+        REVRANK,
+        BYRANK,
+        BYREVRANK;
 
-		private final byte[] raw;
+        private final byte[] raw;
 
-		TDigestCommand() {
-			raw = ("TDIGEST." + name()).getBytes(StandardCharsets.UTF_8);
-		}
+        TDigestCommand() {
+            raw = ("TDIGEST." + name()).getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public byte[] getRaw() {
-			return raw.clone(); // ✅ Return defensive copy to prevent external modification
-		}
-	}
+        @Override
+        public byte[] getRaw() {
+            return raw.clone(); // ✅ Return defensive copy to prevent external modification
+        }
+    }
 
-	public enum RedisBloomKeyword implements Rawable {
-		CAPACITY,
-		ERROR,
-		NOCREATE,
-		EXPANSION,
-		NONSCALING,
-		BUCKETSIZE,
-		MAXITERATIONS,
-		ITEMS,
-		WEIGHTS,
-		COMPRESSION,
-		OVERRIDE,
-		WITHCOUNT;
+    public enum RedisBloomKeyword implements Rawable {
+        CAPACITY,
+        ERROR,
+        NOCREATE,
+        EXPANSION,
+        NONSCALING,
+        BUCKETSIZE,
+        MAXITERATIONS,
+        ITEMS,
+        WEIGHTS,
+        COMPRESSION,
+        OVERRIDE,
+        WITHCOUNT;
 
-		private final byte[] raw;
+        private final byte[] raw;
 
-		RedisBloomKeyword() {
-			raw = name().getBytes(StandardCharsets.UTF_8);
-		}
+        RedisBloomKeyword() {
+            raw = name().getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public byte[] getRaw() {
-			return raw.clone(); // ✅ Return defensive copy to prevent external modification
-		}
-	}
+        @Override
+        public byte[] getRaw() {
+            return raw.clone(); // ✅ Return defensive copy to prevent external modification
+        }
+    }
 }
