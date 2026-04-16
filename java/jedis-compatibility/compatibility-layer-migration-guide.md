@@ -87,6 +87,7 @@ blockingSocketTimeoutMillis
 ### Client Types
 - ✅ Basic Jedis client
 - ✅ Simple connection configurations
+- ✅ **Pipelining**: `jedis.pipelined()` returns `Pipeline` (GLIDE non-atomic batch). Only selected commands are wired; extend as needed or use `GlideClient` `Batch` directly.
 - ✅ **JedisPool** (standalone): Core Jedis-style pooling — `getResource()`, try-with-resources / `close()`, `Pool#returnBrokenResource`, broken vs healthy return, `GenericObjectPoolConfig` honored via Commons Pool 2. Each pooled `Jedis` uses its own GLIDE `GlideClient` (not a shared TCP connection like classic Jedis).
 - ⚠️ **JedisPooled** (limited support): API compatibility; internal GLIDE connection management differs from upstream Jedis.
 
@@ -108,7 +109,7 @@ blockingSocketTimeoutMillis
 ### Advanced Features
 - ⚠️ **Transactions**: Basic MULTI/EXEC/DISCARD/WATCH/UNWATCH supported, but with limitations:
   - After `multi()`, you must use the returned **Transaction** object to queue commands (e.g. `t.set()`, `t.get()`). Calling `jedis.set()` or other Jedis methods directly does **not** queue to the transaction.
-  - For commands not yet exposed on `Transaction`, or for pipeline (non-atomic) batching, use the native GLIDE Batch API with the same connection.
+  - For commands not yet exposed on `Transaction`, use the native GLIDE `Batch` API, or non-atomic pipelining via `jedis.pipelined()` (see below).
   - `watch()` and `unwatch()` work as expected for conditional execution.
 
   **Transaction usage (compat layer):**
@@ -130,7 +131,7 @@ blockingSocketTimeoutMillis
   Object[] results = glideClient.exec(batch, false).get();
   ```
 
-- **Pipelining**: Jedis pipelining functionality unavailable (use GLIDE Batch API instead)
+- ✅ **Pipelining**: `jedis.pipelined()` returns a `Pipeline` backed by GLIDE’s non-atomic batch. Queue commands on the pipeline, then `sync()` or `close()`, and read `Response` values. Only a subset of Jedis `Pipeline` methods is implemented (e.g. `set`, `get`, `expire`, `hget` and binary overloads); for other commands use `GlideClient` `Batch`/`exec` or single `Jedis` calls.
 - **Pub/Sub**: Redis publish/subscribe not implemented
 - ✅ **Lua scripting**: Full support for EVAL/EVALSHA, SCRIPT management (LOAD, EXISTS, FLUSH, KILL, DEBUG), and Valkey Functions (FCALL/FUNCTION *)
 - **Modules**: Redis module commands not available

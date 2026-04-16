@@ -461,7 +461,7 @@ public final class Jedis implements Closeable {
     }
 
     /** Convert Jedis SetParams to GLIDE SetOptions. */
-    private static SetOptions convertSetParamsToSetOptions(SetParams params) {
+    static SetOptions convertSetParamsToSetOptions(SetParams params) {
         SetOptions.SetOptionsBuilder builder = SetOptions.builder();
 
         // Handle existence conditions
@@ -1303,6 +1303,16 @@ public final class Jedis implements Closeable {
     }
 
     /**
+     * Ensures the connection is open and the GLIDE client is initialized. Used by {@link Pipeline}
+     * and other helpers that do not route through {@link #executeCommandWithGlide(String,
+     * GlideOperation)}.
+     */
+    void assertUsable() {
+        checkNotClosed();
+        ensureInitialized();
+    }
+
+    /**
      * Functional interface for operations that can throw InterruptedException and ExecutionException.
      */
     @FunctionalInterface
@@ -1382,6 +1392,18 @@ public final class Jedis implements Closeable {
      */
     public String unwatch() {
         return executeCommandWithGlide("UNWATCH", () -> glideClient.unwatch().get());
+    }
+
+    /**
+     * Creates a non-atomic pipeline (GLIDE non-atomic {@link glide.api.models.Batch}) for batching
+     * commands with a single round trip. Call {@link Pipeline#sync()} or {@link Pipeline#close()},
+     * then read {@link Response} values.
+     *
+     * @return pipeline instance tied to this connection
+     */
+    public Pipeline pipelined() {
+        assertUsable();
+        return new Pipeline(this);
     }
 
     /**
