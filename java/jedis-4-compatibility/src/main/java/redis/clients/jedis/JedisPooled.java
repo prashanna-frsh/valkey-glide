@@ -784,7 +784,8 @@ public class JedisPooled extends UnifiedJedis {
     //    }
     //
     //    public JedisPooled(
-    //            GenericObjectPoolConfig<Connection> poolConfig, PooledObjectFactory<Object> factory) {
+    //            GenericObjectPoolConfig<Connection> poolConfig, PooledObjectFactory<Object> factory)
+    // {
     //        this(); // Use default connection since GLIDE handles pooling internally
     //    }
 

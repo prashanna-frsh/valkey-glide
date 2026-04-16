@@ -5,8 +5,8 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.jupiter.api.Test;
 
 /**
- * Test to verify Jedis 4.x API compatibility.
- * This validates that the key Jedis 4.x patterns work with the compatibility layer.
+ * Test to verify Jedis 4.x API compatibility. This validates that the key Jedis 4.x patterns work
+ * with the compatibility layer.
  */
 public class Jedis4CompatibilityTest {
 

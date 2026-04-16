@@ -7,8 +7,8 @@ import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Default implementation of JedisClientConfig with builder pattern. Provides sensible defaults and
- * allows for easy configuration.
- * This version is compatible with Jedis 4.x API (without RedisProtocol).
+ * allows for easy configuration. This version is compatible with Jedis 4.x API (without
+ * RedisProtocol).
  */
 public class DefaultJedisClientConfig implements JedisClientConfig {
 

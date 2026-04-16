@@ -3770,7 +3770,6 @@ public class JedisTest {
     void stream_xinfo_consumers() {
         String key = "stream:" + UUID.randomUUID();
         jedis.xadd(key, Map.of("c", "1"));
-        jedis.xadd(key, createMap("c", "1"));
         String group = "gcons";
         jedis.xgroupCreate(key, group, "0", true);
         jedis.xgroupCreateConsumer(key, group, "consumer1");
@@ -3788,8 +3787,6 @@ public class JedisTest {
         hash.put("f2".getBytes(), "v2".getBytes());
 
         // Use XAddParams to add entry
-        redis.clients.jedis.params.XAddParams params =
-                redis.clients.jedis.params.XAddParams.xAddParams();
         XAddParams params = XAddParams.xAddParams();
         byte[] id = jedis.xadd(key, params, hash);
         assertNotNull(id, "Binary XADD should return entry ID");
@@ -3807,11 +3804,6 @@ public class JedisTest {
         byte[] key = ("stream:" + UUID.randomUUID()).getBytes();
 
         // Add entries using XAddParams
-        redis.clients.jedis.params.XAddParams params =
-                redis.clients.jedis.params.XAddParams.xAddParams();
-        Map<byte[], byte[]> hash1 = Map.of("a".getBytes(), "1".getBytes());
-        Map<byte[], byte[]> hash2 = Map.of("b".getBytes(), "2".getBytes());
-        Map<byte[], byte[]> hash3 = Map.of("c".getBytes(), "3".getBytes());
         XAddParams params = XAddParams.xAddParams();
         Map<byte[], byte[]> hash1 = createMap("a".getBytes(), "1".getBytes());
         Map<byte[], byte[]> hash2 = createMap("b".getBytes(), "2".getBytes());
@@ -3837,11 +3829,6 @@ public class JedisTest {
     @Test
     void stream_binary_xtrim() {
         byte[] key = ("stream:" + UUID.randomUUID()).getBytes();
-        redis.clients.jedis.params.XAddParams addParams =
-                redis.clients.jedis.params.XAddParams.xAddParams();
-
-        for (int i = 0; i < 10; i++) {
-            Map<byte[], byte[]> hash = Map.of("i".getBytes(), String.valueOf(i).getBytes());
         XAddParams addParams = XAddParams.xAddParams();
 
         for (int i = 0; i < 10; i++) {
@@ -3860,11 +3847,6 @@ public class JedisTest {
     @Test
     void stream_xadd_with_xaddparams() {
         String key = "stream:" + UUID.randomUUID();
-        Map<String, String> hash = Map.of("field", "value");
-
-        // Test with custom ID
-        redis.clients.jedis.params.XAddParams params =
-                redis.clients.jedis.params.XAddParams.xAddParams().id("1000-0");
         Map<String, String> hash = createMap("field", "value");
 
         // Test with custom ID
@@ -3875,7 +3857,6 @@ public class JedisTest {
 
         // Test with NOMKSTREAM
         String nonExistentKey = "stream:" + UUID.randomUUID();
-        params = redis.clients.jedis.params.XAddParams.xAddParams().noMkStream();
         params = XAddParams.xAddParams().noMkStream();
         StreamEntryID result = jedis.xadd(nonExistentKey, params, hash);
         assertNull(result, "XADD with NOMKSTREAM should return null for non-existent stream");
@@ -3884,10 +3865,6 @@ public class JedisTest {
         String trimKey = "stream:" + UUID.randomUUID();
         for (int i = 0; i < 5; i++) {
             jedis.xadd(trimKey, Map.of("i", String.valueOf(i)));
-        }
-        params = redis.clients.jedis.params.XAddParams.xAddParams().maxLenExact(3);
-        jedis.xadd(trimKey, params, Map.of("new", "entry"));
-            jedis.xadd(trimKey, createMap("i", String.valueOf(i)));
         }
         params = XAddParams.xAddParams().maxLenExact(3);
         jedis.xadd(trimKey, params, createMap("new", "entry"));
@@ -3903,12 +3880,6 @@ public class JedisTest {
         }
 
         // Test MAXLEN with XTrimParams (exact trimming)
-        redis.clients.jedis.params.XTrimParams params =
-                redis.clients.jedis.params.XTrimParams.xTrimParams().maxLenExact(5);
-            jedis.xadd(key, createMap("i", String.valueOf(i)));
-        }
-
-        // Test MAXLEN with XTrimParams (exact trimming)
         XTrimParams params = XTrimParams.xTrimParams().maxLenExact(5);
         long trimmed = jedis.xtrim(key, params);
         assertTrue(trimmed >= 0, "XTRIM with XTrimParams should return non-negative count");
@@ -3920,9 +3891,6 @@ public class JedisTest {
         for (int i = 0; i < 10; i++) {
             jedis.xadd(key3, Map.of("i", String.valueOf(i)));
         }
-        params = redis.clients.jedis.params.XTrimParams.xTrimParams().maxLen(5);
-            jedis.xadd(key3, createMap("i", String.valueOf(i)));
-        }
         params = XTrimParams.xTrimParams().maxLen(5);
         jedis.xtrim(key3, params);
         len = jedis.xlen(key3);
@@ -3932,14 +3900,9 @@ public class JedisTest {
 
         // Test MINID with XTrimParams (exact trimming)
         String key2 = "stream:" + UUID.randomUUID();
-        StreamEntryID firstId = jedis.xadd(key2, Map.of("a", "1"));
+        jedis.xadd(key2, Map.of("a", "1"));
         jedis.xadd(key2, Map.of("b", "2"));
         StreamEntryID thirdId = jedis.xadd(key2, Map.of("c", "3"));
-
-        params = redis.clients.jedis.params.XTrimParams.xTrimParams().minIdExact(thirdId);
-        StreamEntryID firstId = jedis.xadd(key2, createMap("a", "1"));
-        jedis.xadd(key2, createMap("b", "2"));
-        StreamEntryID thirdId = jedis.xadd(key2, createMap("c", "3"));
 
         params = XTrimParams.xTrimParams().minIdExact(thirdId);
         jedis.xtrim(key2, params);

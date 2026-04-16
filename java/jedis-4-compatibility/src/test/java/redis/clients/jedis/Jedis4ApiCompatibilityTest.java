@@ -7,8 +7,8 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests to verify Jedis 4.x API compatibility at compile time.
- * These tests ensure that the Jedis 4.x-specific type signatures compile correctly.
+ * Tests to verify Jedis 4.x API compatibility at compile time. These tests ensure that the Jedis
+ * 4.x-specific type signatures compile correctly.
  */
 public class Jedis4ApiCompatibilityTest {
 
@@ -21,13 +21,14 @@ public class Jedis4ApiCompatibilityTest {
         poolConfig.setMinIdle(1);
 
         // These constructors should compile with Jedis 4.x API
-        assertDoesNotThrow(() -> {
-            // Note: We don't actually create the pool as it would require a running Redis instance
-            // This test is primarily for compile-time verification
-            assertTrue(poolConfig.getMaxTotal() == 8);
-            assertTrue(poolConfig.getMaxIdle() == 4);
-            assertTrue(poolConfig.getMinIdle() == 1);
-        });
+        assertDoesNotThrow(
+                () -> {
+                    // Note: We don't actually create the pool as it would require a running Redis instance
+                    // This test is primarily for compile-time verification
+                    assertTrue(poolConfig.getMaxTotal() == 8);
+                    assertTrue(poolConfig.getMaxIdle() == 4);
+                    assertTrue(poolConfig.getMinIdle() == 1);
+                });
     }
 
     @Test
@@ -39,25 +40,27 @@ public class Jedis4ApiCompatibilityTest {
         poolConfig.setMinIdle(1);
 
         // These should compile with Jedis 4.x API
-        assertDoesNotThrow(() -> {
-            assertTrue(poolConfig.getMaxTotal() == 8);
-            assertTrue(poolConfig.getMaxIdle() == 4);
-            assertTrue(poolConfig.getMinIdle() == 1);
-        });
+        assertDoesNotThrow(
+                () -> {
+                    assertTrue(poolConfig.getMaxTotal() == 8);
+                    assertTrue(poolConfig.getMaxIdle() == 4);
+                    assertTrue(poolConfig.getMinIdle() == 1);
+                });
     }
 
     @Test
     public void testJedisClientConfigNoRedisProtocol() {
         // Jedis 4.x doesn't have getRedisProtocol() method
-        JedisClientConfig config = DefaultJedisClientConfig.builder()
-                .connectionTimeoutMillis(2000)
-                .socketTimeoutMillis(2000)
-                .user("testuser")
-                .password("testpass")
-                .database(0)
-                .clientName("test-client")
-                .ssl(false)
-                .build();
+        JedisClientConfig config =
+                DefaultJedisClientConfig.builder()
+                        .connectionTimeoutMillis(2000)
+                        .socketTimeoutMillis(2000)
+                        .user("testuser")
+                        .password("testpass")
+                        .database(0)
+                        .clientName("test-client")
+                        .ssl(false)
+                        .build();
 
         // Verify the config works
         assertEquals(2000, config.getConnectionTimeoutMillis());
@@ -119,13 +122,14 @@ public class Jedis4ApiCompatibilityTest {
         GenericObjectPoolConfig<Jedis> poolConfig = new GenericObjectPoolConfig<>();
 
         // These should all compile (Jedis 4.x signatures)
-        assertDoesNotThrow(() -> {
-            // Basic constructors would work here if we had a running Redis instance
-            // For now, just verify the types are correct
-            JedisClientConfig config = DefaultJedisClientConfig.builder().build();
-            assertNotNull(config);
-            assertNotNull(poolConfig);
-        });
+        assertDoesNotThrow(
+                () -> {
+                    // Basic constructors would work here if we had a running Redis instance
+                    // For now, just verify the types are correct
+                    JedisClientConfig config = DefaultJedisClientConfig.builder().build();
+                    assertNotNull(config);
+                    assertNotNull(poolConfig);
+                });
     }
 
     @Test
@@ -133,26 +137,29 @@ public class Jedis4ApiCompatibilityTest {
         // Test that JedisPooled constructor signatures exist and compile with Connection type
         GenericObjectPoolConfig<Connection> poolConfig = new GenericObjectPoolConfig<>();
 
-        assertDoesNotThrow(() -> {
-            JedisClientConfig config = DefaultJedisClientConfig.builder().build();
-            assertNotNull(config);
-            assertNotNull(poolConfig);
-        });
+        assertDoesNotThrow(
+                () -> {
+                    JedisClientConfig config = DefaultJedisClientConfig.builder().build();
+                    assertNotNull(config);
+                    assertNotNull(poolConfig);
+                });
     }
 
     @Test
     public void testUnifiedJedisConstructors() {
         // UnifiedJedis should work without RedisProtocol
-        assertDoesNotThrow(() -> {
-            JedisClientConfig config = DefaultJedisClientConfig.builder()
-                    .connectionTimeoutMillis(2000)
-                    .socketTimeoutMillis(2000)
-                    .build();
+        assertDoesNotThrow(
+                () -> {
+                    JedisClientConfig config =
+                            DefaultJedisClientConfig.builder()
+                                    .connectionTimeoutMillis(2000)
+                                    .socketTimeoutMillis(2000)
+                                    .build();
 
-            assertNotNull(config);
-            // These constructors should exist and compile
-            // Actual instantiation would require a running Redis instance
-        });
+                    assertNotNull(config);
+                    // These constructors should exist and compile
+                    // Actual instantiation would require a running Redis instance
+                });
     }
 
     @Test

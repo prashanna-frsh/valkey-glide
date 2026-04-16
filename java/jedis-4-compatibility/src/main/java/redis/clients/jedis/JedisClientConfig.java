@@ -8,8 +8,8 @@ import javax.net.ssl.SSLSocketFactory;
 import redis.clients.jedis.authentication.AuthXManager;
 
 /**
- * JedisClientConfig compatibility interface for Valkey GLIDE wrapper.
- * This version is compatible with Jedis 4.x API.
+ * JedisClientConfig compatibility interface for Valkey GLIDE wrapper. This version is compatible
+ * with Jedis 4.x API.
  */
 public interface JedisClientConfig {
 
