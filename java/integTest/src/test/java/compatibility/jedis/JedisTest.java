@@ -1827,12 +1827,14 @@ public class JedisTest {
     @Test
     void pubsub_channels_with_pattern_without_active_subscription_excludes_ephemeral_channel() {
         String channel = "ch:" + UUID.randomUUID();
-        List<String> channelsWithPattern = jedis.pubsubChannels(channel);
+        // Glob-style pattern (not the exact channel name) so the server exercises pattern matching.
+        String pattern = "ch:*";
+        List<String> channelsWithPattern = jedis.pubsubChannels(pattern);
         assertNotNull(
                 channelsWithPattern, "PUBSUB CHANNELS with pattern should return a non-null list");
         assertFalse(
                 channelsWithPattern.contains(channel),
-                "PUBSUB CHANNELS should not list channel without subscribers for literal pattern");
+                "PUBSUB CHANNELS with glob pattern should not list channel without subscribers");
     }
 
     @Test
