@@ -4085,8 +4085,9 @@ public class CommandTests {
         assertNotNull(raw, "clusterBumpEpoch returned null");
         String result = raw.trim();
         assertFalse(result.isEmpty(), "clusterBumpEpoch returned blank");
+        String upper = result.toUpperCase();
         assertTrue(
-                "BUMPED".equalsIgnoreCase(result) || "STILL".equalsIgnoreCase(result),
+                upper.startsWith("BUMPED") || upper.startsWith("STILL"),
                 "Expected BUMPED or STILL, got: " + result);
     }
 
@@ -4152,10 +4153,11 @@ public class CommandTests {
         long bumpOrStillCount =
                 Arrays.stream(results)
                         .filter(
-                                r ->
-                                        r instanceof String
-                                                && ("BUMPED".equalsIgnoreCase(((String) r).trim())
-                                                        || "STILL".equalsIgnoreCase(((String) r).trim())))
+                                r -> {
+                                    if (!(r instanceof String)) return false;
+                                    String upper = ((String) r).trim().toUpperCase();
+                                    return upper.startsWith("BUMPED") || upper.startsWith("STILL");
+                                })
                         .count();
         assertEquals(2, okCount, "Expected 2 OK responses (SAVECONFIG, ASKING)");
         assertEquals(1, bumpOrStillCount, "Expected 1 BUMPED or STILL (CLUSTER BUMPEPOCH)");
@@ -4170,7 +4172,9 @@ public class CommandTests {
                 "Requires at least one replica");
 
         // Get cluster nodes to find a primary node ID
-        String nodesOutput = client.customCommand(new String[] {"CLUSTER", "NODES"}).get().toString();
+        ClusterValue<Object> nodesResult =
+                client.customCommand(new String[] {"CLUSTER", "NODES"}).get();
+        String nodesOutput = (String) nodesResult.getSingleValue();
         String[] lines = nodesOutput.split("\n");
         String primaryNodeId = null;
 
@@ -4183,7 +4187,11 @@ public class CommandTests {
                 continue;
             }
             String flags = parts[2];
-            if (flags.contains("master") && !flags.contains("slave") && !flags.contains("replica")) {
+            boolean isPrimary =
+                    (flags.contains("master") || flags.contains("primary"))
+                            && !flags.contains("slave")
+                            && !flags.contains("replica");
+            if (isPrimary) {
                 primaryNodeId = parts[0];
                 break;
             }
@@ -4211,7 +4219,9 @@ public class CommandTests {
     @SneakyThrows
     public void cluster_management_commands_count_failure_reports(GlideClusterClient client) {
         // Get cluster nodes to find a node ID
-        String nodesOutput = client.customCommand(new String[] {"CLUSTER", "NODES"}).get().toString();
+        ClusterValue<Object> nodesResult =
+                client.customCommand(new String[] {"CLUSTER", "NODES"}).get();
+        String nodesOutput = (String) nodesResult.getSingleValue();
         String[] lines = nodesOutput.split("\n");
         String nodeId = null;
 
