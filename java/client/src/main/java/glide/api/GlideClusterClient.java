@@ -1927,14 +1927,6 @@ public class GlideClusterClient extends BaseClient
     }
 
     @Override
-    public CompletableFuture<String[]> clusterGetKeysInSlot(long slot, long count) {
-        return commandManager.submitNewCommand(
-                ClusterGetKeysInSlot,
-                new String[] {Long.toString(slot), Long.toString(count)},
-                response -> castArray(handleArrayResponse(response), String.class));
-    }
-
-    @Override
     public CompletableFuture<String> clusterNodes() {
         return commandManager.submitNewCommand(ClusterNodes, new String[0], this::handleStringResponse);
     }

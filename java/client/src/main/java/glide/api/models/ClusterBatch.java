@@ -482,21 +482,6 @@ public class ClusterBatch extends BaseBatch<ClusterBatch> {
     }
 
     /**
-     * Returns an array of keys in the specified hash slot.
-     *
-     * @see <a href="https://valkey.io/commands/cluster-getkeysinslot/">valkey.io</a> for details.
-     * @param slot The hash slot number (0-16383) to retrieve keys from.
-     * @param count The maximum number of keys to return. Must be positive.
-     * @return Command response - An array of up to <code>count</code> keys belonging to the specified
-     *     slot.
-     */
-    public ClusterBatch clusterGetKeysInSlot(long slot, long count) {
-        protobufBatch.addCommands(
-                buildCommand(ClusterGetKeysInSlot, newArgsBuilder().add(slot).add(count)));
-        return getThis();
-    }
-
-    /**
      * Assigns hash slots to the current node.
      *
      * @see <a href="https://valkey.io/commands/cluster-addslots/">valkey.io</a> for details.
