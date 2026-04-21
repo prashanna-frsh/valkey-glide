@@ -1,13 +1,33 @@
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 package glide.api;
 
+import static command_request.CommandRequestOuterClass.RequestType.Asking;
 import static command_request.CommandRequestOuterClass.RequestType.ClientGetName;
 import static command_request.CommandRequestOuterClass.RequestType.ClientId;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterAddSlots;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterAddSlotsRange;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterBumpEpoch;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterCountFailureReports;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterCountKeysInSlot;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterDelSlots;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterDelSlotsRange;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterFailover;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterFlushSlots;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterForget;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterGetKeysInSlot;
 import static command_request.CommandRequestOuterClass.RequestType.ClusterInfo;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterKeySlot;
 import static command_request.CommandRequestOuterClass.RequestType.ClusterLinks;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterMeet;
 import static command_request.CommandRequestOuterClass.RequestType.ClusterMyId;
 import static command_request.CommandRequestOuterClass.RequestType.ClusterMyShardId;
 import static command_request.CommandRequestOuterClass.RequestType.ClusterNodes;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterReplicas;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterReplicate;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterReset;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterSaveConfig;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterSetConfigEpoch;
+import static command_request.CommandRequestOuterClass.RequestType.ClusterSetslot;
 import static command_request.CommandRequestOuterClass.RequestType.ClusterShards;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigGet;
 import static command_request.CommandRequestOuterClass.RequestType.ConfigResetStat;
@@ -36,6 +56,8 @@ import static command_request.CommandRequestOuterClass.RequestType.Ping;
 import static command_request.CommandRequestOuterClass.RequestType.PubSubShardChannels;
 import static command_request.CommandRequestOuterClass.RequestType.PubSubShardNumSub;
 import static command_request.CommandRequestOuterClass.RequestType.RandomKey;
+import static command_request.CommandRequestOuterClass.RequestType.ReadOnly;
+import static command_request.CommandRequestOuterClass.RequestType.ReadWrite;
 import static command_request.CommandRequestOuterClass.RequestType.SPublish;
 import static command_request.CommandRequestOuterClass.RequestType.SSubscribe;
 import static command_request.CommandRequestOuterClass.RequestType.SSubscribeBlocking;
@@ -59,9 +81,13 @@ import static glide.utils.ArrayTransformUtils.castMapOfArrays;
 import static glide.utils.ArrayTransformUtils.concatenateArrays;
 import static glide.utils.ArrayTransformUtils.convertMapToKeyValueStringArray;
 
+import glide.api.commands.ClusterAdminCommands;
 import glide.api.commands.ClusterManagementClusterCommands;
+import glide.api.commands.ClusterOperationsCommands;
+import glide.api.commands.ConnectionControlCommands;
 import glide.api.commands.ConnectionManagementClusterCommands;
 import glide.api.commands.GenericClusterCommands;
+import glide.api.commands.NodeManagementCommands;
 import glide.api.commands.PubSubClusterCommands;
 import glide.api.commands.ScriptingAndFunctionsClusterCommands;
 import glide.api.commands.ServerManagementClusterCommands;
@@ -77,6 +103,9 @@ import glide.api.models.commands.InfoOptions.Section;
 import glide.api.models.commands.ScriptArgOptions;
 import glide.api.models.commands.ScriptArgOptionsGlideString;
 import glide.api.models.commands.batch.ClusterBatchOptions;
+import glide.api.models.commands.cluster.ClusterFailoverOptions;
+import glide.api.models.commands.cluster.ClusterResetOptions;
+import glide.api.models.commands.cluster.ClusterSetSlotOptions;
 import glide.api.models.commands.function.FunctionRestorePolicy;
 import glide.api.models.commands.scan.ClusterScanCursor;
 import glide.api.models.commands.scan.ScanOptions;
@@ -115,12 +144,16 @@ import response.ResponseOuterClass.Response;
  *     Documentation</a>.
  */
 public class GlideClusterClient extends BaseClient
-        implements ConnectionManagementClusterCommands,
+        implements ClusterAdminCommands,
+                ClusterOperationsCommands,
+                ConnectionControlCommands,
+                ConnectionManagementClusterCommands,
                 GenericClusterCommands,
-                ServerManagementClusterCommands,
-                ScriptingAndFunctionsClusterCommands,
-                TransactionsClusterCommands,
+                NodeManagementCommands,
                 PubSubClusterCommands,
+                ScriptingAndFunctionsClusterCommands,
+                ServerManagementClusterCommands,
+                TransactionsClusterCommands,
                 ClusterManagementClusterCommands {
 
     /** Constructor using ClientParams from BaseClient. */
@@ -1722,6 +1755,161 @@ public class GlideClusterClient extends BaseClient
     }
 
     @Override
+    public CompletableFuture<String> clusterMeet(@NonNull String host, long port) {
+        return commandManager.submitNewCommand(
+                ClusterMeet, new String[] {host, Long.toString(port)}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<ClusterValue<String>> clusterMeet(
+            @NonNull String host, long port, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClusterMeet,
+                new String[] {host, Long.toString(port)},
+                route,
+                response ->
+                        route instanceof SingleNodeRoute
+                                ? ClusterValue.of(handleStringResponse(response))
+                                : ClusterValue.of(handleMapResponse(response)));
+    }
+
+    @Override
+    public CompletableFuture<String> clusterForget(@NonNull String nodeId) {
+        return commandManager.submitNewCommand(
+                ClusterForget, new String[] {nodeId}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterReplicate(@NonNull String nodeId) {
+        return commandManager.submitNewCommand(
+                ClusterReplicate, new String[] {nodeId}, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String[]> clusterReplicas(@NonNull String nodeId) {
+        return commandManager.submitNewCommand(
+                ClusterReplicas,
+                new String[] {nodeId},
+                response -> castArray(handleArrayResponse(response), String.class));
+    }
+
+    @Override
+    public CompletableFuture<ClusterValue<String[]>> clusterReplicas(
+            @NonNull String nodeId, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClusterReplicas,
+                new String[] {nodeId},
+                route,
+                response ->
+                        route instanceof SingleNodeRoute
+                                ? ClusterValue.ofSingleValue(castArray(handleArrayResponse(response), String.class))
+                                : ClusterValue.ofMultiValue(
+                                        castMapOfArrays(handleMapResponse(response), String.class)));
+    }
+
+    @Override
+    public CompletableFuture<Long> clusterCountFailureReports(@NonNull String nodeId) {
+        return commandManager.submitNewCommand(
+                ClusterCountFailureReports, new String[] {nodeId}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<ClusterValue<Long>> clusterCountFailureReports(
+            @NonNull String nodeId, @NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClusterCountFailureReports,
+                new String[] {nodeId},
+                route,
+                response ->
+                        route instanceof SingleNodeRoute
+                                ? ClusterValue.of(handleLongResponse(response))
+                                : ClusterValue.of(handleMapResponse(response)));
+    }
+
+    @Override
+    public CompletableFuture<String> clusterFailover() {
+        return commandManager.submitNewCommand(
+                ClusterFailover, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterFailover(@NonNull ClusterFailoverOptions options) {
+        return commandManager.submitNewCommand(
+                ClusterFailover, options.toArgs(), this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterSetSlot(
+            long slot, @NonNull ClusterSetSlotOptions options) {
+        String[] args = concatenateArrays(new String[] {Long.toString(slot)}, options.toArgs());
+        return commandManager.submitNewCommand(ClusterSetslot, args, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterBumpEpoch() {
+        return commandManager.submitNewCommand(
+                ClusterBumpEpoch, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterSetConfigEpoch(long configEpoch) {
+        return commandManager.submitNewCommand(
+                ClusterSetConfigEpoch,
+                new String[] {Long.toString(configEpoch)},
+                this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterFlushSlots() {
+        return commandManager.submitNewCommand(
+                ClusterFlushSlots, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterReset() {
+        return commandManager.submitNewCommand(ClusterReset, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterReset(@NonNull ClusterResetOptions options) {
+        return commandManager.submitNewCommand(
+                ClusterReset, options.toArgs(), this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> readonly() {
+        return commandManager.submitNewCommand(ReadOnly, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> readwrite() {
+        return commandManager.submitNewCommand(ReadWrite, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> asking() {
+        return commandManager.submitNewCommand(Asking, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterSaveConfig() {
+        return commandManager.submitNewCommand(
+                ClusterSaveConfig, new String[0], this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<ClusterValue<String>> clusterSaveConfig(@NonNull Route route) {
+        return commandManager.submitNewCommand(
+                ClusterSaveConfig,
+                new String[0],
+                route,
+                response ->
+                        route instanceof SingleNodeRoute
+                                ? ClusterValue.of(handleStringResponse(response))
+                                : ClusterValue.of(handleMapResponse(response)));
+    }
+
+    @Override
     public CompletableFuture<String> clusterInfo() {
         return commandManager.submitNewCommand(ClusterInfo, new String[0], this::handleStringResponse);
     }
@@ -1822,5 +2010,69 @@ public class GlideClusterClient extends BaseClient
                         route instanceof SingleNodeRoute
                                 ? ClusterValue.of(handleStringResponse(response))
                                 : ClusterValue.of(handleMapResponse(response)));
+    }
+
+    @Override
+    public CompletableFuture<Long> clusterKeySlot(@NonNull String key) {
+        return commandManager.submitNewCommand(
+                ClusterKeySlot, new String[] {key}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clusterKeySlot(@NonNull GlideString key) {
+        return commandManager.submitNewCommand(
+                ClusterKeySlot, new GlideString[] {key}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<Long> clusterCountKeysInSlot(long slot) {
+        return commandManager.submitNewCommand(
+                ClusterCountKeysInSlot, new String[] {Long.toString(slot)}, this::handleLongResponse);
+    }
+
+    @Override
+    public CompletableFuture<String[]> clusterGetKeysInSlot(long slot, long count) {
+        return commandManager.submitNewCommand(
+                ClusterGetKeysInSlot,
+                new String[] {Long.toString(slot), Long.toString(count)},
+                response -> castArray(handleArrayResponse(response), String.class));
+    }
+
+    @Override
+    public CompletableFuture<GlideString[]> clusterGetKeysInSlotBinary(long slot, long count) {
+        return commandManager.submitNewCommand(
+                ClusterGetKeysInSlot,
+                new GlideString[] {gs(Long.toString(slot)), gs(Long.toString(count))},
+                response -> castArray(handleArrayResponseBinary(response), GlideString.class));
+    }
+
+    @Override
+    public CompletableFuture<String> clusterAddSlots(long @NonNull [] slots) {
+        String[] args = Arrays.stream(slots).mapToObj(Long::toString).toArray(String[]::new);
+        return commandManager.submitNewCommand(ClusterAddSlots, args, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterAddSlotsRange(long @NonNull [][] slotRanges) {
+        String[] args =
+                Arrays.stream(slotRanges)
+                        .flatMap(range -> Arrays.stream(range).mapToObj(Long::toString))
+                        .toArray(String[]::new);
+        return commandManager.submitNewCommand(ClusterAddSlotsRange, args, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterDelSlots(long @NonNull [] slots) {
+        String[] args = Arrays.stream(slots).mapToObj(Long::toString).toArray(String[]::new);
+        return commandManager.submitNewCommand(ClusterDelSlots, args, this::handleStringResponse);
+    }
+
+    @Override
+    public CompletableFuture<String> clusterDelSlotsRange(long @NonNull [][] slotRanges) {
+        String[] args =
+                Arrays.stream(slotRanges)
+                        .flatMap(range -> Arrays.stream(range).mapToObj(Long::toString))
+                        .toArray(String[]::new);
+        return commandManager.submitNewCommand(ClusterDelSlotsRange, args, this::handleStringResponse);
     }
 }
