@@ -11,8 +11,12 @@ public class ConnectionSettings {
     public final String password;
 
     public ConnectionSettings(
-            String host, int port, boolean useSsl, boolean clusterMode,
-            String username, String password) {
+            String host,
+            int port,
+            boolean useSsl,
+            boolean clusterMode,
+            String username,
+            String password) {
         this.host = host;
         this.port = port;
         this.useSsl = useSsl;

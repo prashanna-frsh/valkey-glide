@@ -1,14 +1,17 @@
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 package glide.benchmarks;
 
+import static glide.benchmarks.utils.Benchmarking.testClientHashForm;
 import static glide.benchmarks.utils.Benchmarking.testClientSetGet;
 
+import glide.benchmarks.clients.Client;
 import glide.benchmarks.clients.glide.GlideAsyncClient;
 import glide.benchmarks.clients.jedis.JedisClient;
 import glide.benchmarks.clients.jedis.JedisCompatClient;
 import glide.benchmarks.clients.lettuce.LettuceAsyncClient;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -46,23 +49,46 @@ public class BenchmarkingApp {
         }
 
         for (ClientName client : runConfiguration.clients) {
+            Supplier<Client> clientCreator;
+            boolean async;
+            String displayName;
             switch (client) {
                 case JEDIS:
-                    System.out.println("Run JEDIS sync client");
-                    testClientSetGet(JedisClient::new, runConfiguration, false);
+                    clientCreator = JedisClient::new;
+                    async = false;
+                    displayName = "JEDIS sync client";
                     break;
                 case JEDIS_COMPAT:
-                    System.out.println("Run GLIDE jedis-compatibility client");
-                    testClientSetGet(JedisCompatClient::new, runConfiguration, false);
+                    clientCreator = JedisCompatClient::new;
+                    async = false;
+                    displayName = "GLIDE jedis-compatibility client";
                     break;
                 case LETTUCE:
-                    System.out.println("Run LETTUCE async client");
-                    testClientSetGet(LettuceAsyncClient::new, runConfiguration, true);
+                    clientCreator = LettuceAsyncClient::new;
+                    async = true;
+                    displayName = "LETTUCE async client";
                     break;
                 case GLIDE:
-                    System.out.println("Valkey-GLIDE async client");
-                    testClientSetGet(GlideAsyncClient::new, runConfiguration, true);
+                    clientCreator = GlideAsyncClient::new;
+                    async = true;
+                    displayName = "Valkey-GLIDE async client";
                     break;
+                default:
+                    // ClientName.ALL is expanded away in verifyOptions(); nothing to run here.
+                    continue;
+            }
+
+            for (Workload workload : runConfiguration.workloads) {
+                switch (workload) {
+                    case STRING:
+                        System.out.printf("Run %s (string workload: GET/SET)%n", displayName);
+                        testClientSetGet(clientCreator, runConfiguration, async);
+                        break;
+                    case HASH:
+                        System.out.printf("Run %s (hash workload: HSET/HGET/HGETALL)%n", displayName);
+                        testClientHashForm(clientCreator, runConfiguration, async);
+                        break;
+                }
             }
         }
     }
@@ -101,6 +127,14 @@ public class BenchmarkingApp {
                         .longOpt("clients")
                         .hasArg(true)
                         .desc("one of: all|jedis|jedis_compat|lettuce|glide")
+                        .build());
+        options.addOption(
+                Option.builder()
+                        .longOpt("workload")
+                        .hasArg(true)
+                        .desc(
+                                "one of: all|string|hash. 'string' runs isolated GET/SET, 'hash' runs"
+                                        + " concurrent HSET/HGET/HGETALL against a hash keyspace [string]")
                         .build());
         options.addOption(
                 Option.builder().longOpt("host").hasArg(true).desc("Hostname [localhost]").build());
@@ -193,6 +227,27 @@ public class BenchmarkingApp {
                             .toArray(ClientName[]::new);
         }
 
+        if (line.hasOption("workload")) {
+            String[] workloads = line.getOptionValue("workload").split(",");
+            runConfiguration.workloads =
+                    Arrays.stream(workloads)
+                            .map(w -> Enum.valueOf(Workload.class, w.toUpperCase()))
+                            .flatMap(
+                                    w -> {
+                                        switch (w) {
+                                            case ALL:
+                                                return Stream.of(Workload.STRING, Workload.HASH);
+                                            case STRING:
+                                                return Stream.of(Workload.STRING);
+                                            case HASH:
+                                                return Stream.of(Workload.HASH);
+                                            default:
+                                                throw new IllegalStateException("Unhandled workload: " + w);
+                                        }
+                                    })
+                            .toArray(Workload[]::new);
+        }
+
         if (line.hasOption("host")) {
             runConfiguration.host = line.getOptionValue("host");
         }
@@ -266,12 +321,30 @@ public class BenchmarkingApp {
         }
     }
 
+    public enum Workload {
+        STRING("String"), // isolated GET/SET
+        HASH("Hash"), // concurrent HSET/HGET/HGETALL per "form" request
+        ALL("All");
+
+        private String name;
+
+        private Workload(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return this.name;
+        }
+    }
+
     public static class RunConfiguration {
         public String configuration;
         public Optional<String> resultsFile;
         public int[] dataSize;
         public int[] concurrentTasks;
         public ClientName[] clients;
+        public Workload[] workloads;
         public String host;
         public int port;
         public int[] clientCount;
@@ -290,6 +363,10 @@ public class BenchmarkingApp {
             clients =
                     new ClientName[] {
                         ClientName.ALL,
+                    };
+            workloads =
+                    new Workload[] {
+                        Workload.STRING,
                     };
             host = "localhost";
             port = 6379;

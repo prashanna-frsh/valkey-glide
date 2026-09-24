@@ -1,6 +1,7 @@
 /** Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0 */
 package glide.benchmarks.clients;
 
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,12 @@ public interface AsyncClient<T> extends Client {
     Future<T> asyncSet(String key, String value);
 
     Future<String> asyncGet(String key);
+
+    Future<Long> asyncHset(String key, Map<String, String> fieldValueMap);
+
+    Future<String> asyncHget(String key, String field);
+
+    Future<Map<String, String>> asyncHgetAll(String key);
 
     default <T> T waitForResult(Future<T> future) {
         return waitForResult(future, DEFAULT_TIMEOUT_MILLISECOND);

@@ -6,6 +6,8 @@ import glide.benchmarks.clients.AsyncClient;
 import glide.benchmarks.clients.Client;
 import glide.benchmarks.clients.SyncClient;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -27,9 +29,24 @@ public class Benchmarking {
     static final double PROB_GET_EXISTING_KEY = 0.8;
     static final int SIZE_GET_KEYSPACE = 3750000;
     static final int SIZE_SET_KEYSPACE = 3000000;
+
+    // "Form" workload: a hash per form, written via HSET and read back via HGET/HGETALL,
+    // simulating concurrent HGET/HGETALL/HSET traffic against one hash per logical request.
+    static final double PROB_HSET = 0.2;
+    static final int SIZE_HASH_KEYSPACE = 3000000;
+    static final int HASH_FIELD_COUNT = 5;
+
     public static final double NANO_TO_SECONDS = 1e9;
 
-    private static ChosenAction randomAction() {
+    private static final List<ChosenAction> STRING_ACTIONS =
+            Collections.unmodifiableList(
+                    Arrays.asList(
+                            ChosenAction.GET_EXISTING, ChosenAction.GET_NON_EXISTING, ChosenAction.SET));
+    private static final List<ChosenAction> HASH_ACTIONS =
+            Collections.unmodifiableList(
+                    Arrays.asList(ChosenAction.HSET, ChosenAction.HGET, ChosenAction.HGETALL));
+
+    private static ChosenAction randomStringAction() {
         if (Math.random() > PROB_GET) {
             return ChosenAction.SET;
         }
@@ -37,6 +54,16 @@ public class Benchmarking {
             return ChosenAction.GET_NON_EXISTING;
         }
         return ChosenAction.GET_EXISTING;
+    }
+
+    private static ChosenAction randomHashAction() {
+        if (Math.random() < PROB_HSET) {
+            return ChosenAction.HSET;
+        }
+        if (Math.random() < 0.5) {
+            return ChosenAction.HGET;
+        }
+        return ChosenAction.HGETALL;
     }
 
     public static String generateKeyGet() {
@@ -48,13 +75,21 @@ public class Benchmarking {
         return (Math.floor(Math.random() * SIZE_SET_KEYSPACE) + 1) + "";
     }
 
+    public static String generateHashKey() {
+        return "form:" + (Math.floor(Math.random() * SIZE_HASH_KEYSPACE) + 1);
+    }
+
+    public static String generateHashField() {
+        return "field" + (int) Math.floor(Math.random() * HASH_FIELD_COUNT);
+    }
+
     public interface Operation {
         void go(Client client) throws InterruptedException, ExecutionException;
     }
 
     public static Pair<ChosenAction, Long> measurePerformance(
-            Client client, Map<ChosenAction, Operation> actions) {
-        ChosenAction action = randomAction();
+            Client client, Map<ChosenAction, Operation> actions, Supplier<ChosenAction> actionSelector) {
+        ChosenAction action = actionSelector.get();
         long before = System.nanoTime();
         try {
             actions.get(action).go(client);
@@ -109,8 +144,44 @@ public class Benchmarking {
         System.out.println("Total requests: " + totalRequests);
     }
 
+    /** Benchmarks isolated single-key GET/SET traffic against a string keyspace. */
     public static void testClientSetGet(
             Supplier<Client> clientCreator, BenchmarkingApp.RunConfiguration config, boolean async) {
+        runWorkload(
+                clientCreator,
+                config,
+                async,
+                STRING_ACTIONS,
+                Benchmarking::randomStringAction,
+                Benchmarking::getActionMap,
+                "string");
+    }
+
+    /**
+     * Benchmarks concurrent HSET/HGET/HGETALL traffic against a hash keyspace, modelling a "form"
+     * request pattern: a form is written with HSET and read back via HGET (single field) or HGETALL
+     * (whole form).
+     */
+    public static void testClientHashForm(
+            Supplier<Client> clientCreator, BenchmarkingApp.RunConfiguration config, boolean async) {
+        runWorkload(
+                clientCreator,
+                config,
+                async,
+                HASH_ACTIONS,
+                Benchmarking::randomHashAction,
+                Benchmarking::getHashActionMap,
+                "hash");
+    }
+
+    private static void runWorkload(
+            Supplier<Client> clientCreator,
+            BenchmarkingApp.RunConfiguration config,
+            boolean async,
+            List<ChosenAction> trackedActions,
+            Supplier<ChosenAction> actionSelector,
+            ActionMapFactory actionMapFactory,
+            String workloadName) {
         for (int concurrentNum : config.concurrentTasks) {
             // same as Executors.newCachedThreadPool() with a RejectedExecutionHandler for robustness
             ExecutorService executor =
@@ -139,16 +210,20 @@ public class Benchmarking {
                         Client newClient = clientCreator.get();
                         newClient.connectToValkey(
                                 new ConnectionSettings(
-                                        config.host, config.port, config.tls, config.clusterModeEnabled,
-                                        config.username, config.password));
+                                        config.host,
+                                        config.port,
+                                        config.tls,
+                                        config.clusterModeEnabled,
+                                        config.username,
+                                        config.password));
                         clients.add(newClient);
                     }
 
                     String clientName = clients.get(0).getName();
 
                     System.out.printf(
-                            "%n =====> %s <===== %d clients %d concurrent %d data size %n%n",
-                            clientName, clientCount, concurrentNum, dataSize);
+                            "%n =====> %s (%s) <===== %d clients %d concurrent %d data size %n%n",
+                            clientName, workloadName, clientCount, concurrentNum, dataSize);
                     AtomicInteger iterationCounter = new AtomicInteger(0);
 
                     long started = System.nanoTime();
@@ -162,6 +237,9 @@ public class Benchmarking {
                                         concurrentNum,
                                         clientCount,
                                         dataSize,
+                                        trackedActions,
+                                        actionSelector,
+                                        actionMapFactory,
                                         iterationCounter,
                                         clients,
                                         taskNumDebugging,
@@ -190,9 +268,9 @@ public class Benchmarking {
 
                     // Map to save latency results separately for each action
                     Map<ChosenAction, List<Long>> actionResults = new HashMap<>();
-                    actionResults.put(ChosenAction.GET_EXISTING, new ArrayList<>());
-                    actionResults.put(ChosenAction.GET_NON_EXISTING, new ArrayList<>());
-                    actionResults.put(ChosenAction.SET, new ArrayList<>());
+                    for (ChosenAction action : trackedActions) {
+                        actionResults.put(action, new ArrayList<>());
+                    }
 
                     // for each task, call future.get() to retrieve & save the result in the map
                     asyncTasks.forEach(
@@ -219,7 +297,8 @@ public class Benchmarking {
                                 clientName,
                                 clientCount,
                                 concurrentNum,
-                                tps);
+                                tps,
+                                workloadName);
                     }
                     printResults(calculatedResults, (after - started) / NANO_TO_SECONDS, iterations);
                 }
@@ -235,6 +314,9 @@ public class Benchmarking {
             int concurrentNum,
             int clientCount,
             int dataSize,
+            List<ChosenAction> trackedActions,
+            Supplier<ChosenAction> actionSelector,
+            ActionMapFactory actionMapFactory,
             AtomicInteger iterationCounter,
             List<Client> clients,
             int taskNumDebugging,
@@ -244,10 +326,10 @@ public class Benchmarking {
         return CompletableFuture.supplyAsync(
                 () -> {
                     Map<ChosenAction, ArrayList<Long>> taskActionResults = new HashMap<>();
-                    taskActionResults.put(ChosenAction.GET_EXISTING, new ArrayList<>());
-                    taskActionResults.put(ChosenAction.GET_NON_EXISTING, new ArrayList<>());
-                    taskActionResults.put(ChosenAction.SET, new ArrayList<>());
-                    Map<ChosenAction, Operation> actions = getActionMap(dataSize, async);
+                    for (ChosenAction action : trackedActions) {
+                        taskActionResults.put(action, new ArrayList<>());
+                    }
+                    Map<ChosenAction, Operation> actions = actionMapFactory.get(dataSize, async);
 
                     if (debugLogging) {
                         System.out.printf("%n concurrent = %d/%d%n", taskNumDebugging, concurrentNum);
@@ -263,7 +345,8 @@ public class Benchmarking {
                         }
 
                         // operate and calculate tik-tok
-                        Pair<ChosenAction, Long> result = measurePerformance(clients.get(clientIndex), actions);
+                        Pair<ChosenAction, Long> result =
+                                measurePerformance(clients.get(clientIndex), actions, actionSelector);
                         taskActionResults.get(result.getLeft()).add(result.getRight());
                     }
                     return taskActionResults;
@@ -277,6 +360,10 @@ public class Benchmarking {
             sb.append(str);
         }
         return sb.toString();
+    }
+
+    private interface ActionMapFactory {
+        Map<ChosenAction, Operation> get(int dataSize, boolean async);
     }
 
     public static Map<ChosenAction, Operation> getActionMap(int dataSize, boolean async) {
@@ -308,6 +395,49 @@ public class Benchmarking {
                         ((AsyncClient) client).asyncSet(generateKeySet(), value).get();
                     } else {
                         ((SyncClient) client).set(generateKeySet(), value);
+                    }
+                });
+        return actions;
+    }
+
+    public static Map<ChosenAction, Operation> getHashActionMap(int dataSize, boolean async) {
+
+        String value = repeatString("0", dataSize);
+        Map<String, String> formFields = new HashMap<>();
+        for (int i = 0; i < HASH_FIELD_COUNT; i++) {
+            formFields.put("field" + i, value);
+        }
+
+        Map<ChosenAction, Operation> actions = new HashMap<>();
+        actions.put(
+                ChosenAction.HSET,
+                (client) -> {
+                    String key = generateHashKey();
+                    if (async) {
+                        ((AsyncClient) client).asyncHset(key, formFields).get();
+                    } else {
+                        ((SyncClient) client).hset(key, formFields);
+                    }
+                });
+        actions.put(
+                ChosenAction.HGET,
+                (client) -> {
+                    String key = generateHashKey();
+                    String field = generateHashField();
+                    if (async) {
+                        ((AsyncClient) client).asyncHget(key, field).get();
+                    } else {
+                        ((SyncClient) client).hget(key, field);
+                    }
+                });
+        actions.put(
+                ChosenAction.HGETALL,
+                (client) -> {
+                    String key = generateHashKey();
+                    if (async) {
+                        ((AsyncClient) client).asyncHgetAll(key).get();
+                    } else {
+                        ((SyncClient) client).hgetAll(key);
                     }
                 });
         return actions;

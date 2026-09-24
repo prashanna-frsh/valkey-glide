@@ -43,6 +43,9 @@ dependencies {
 
     // Jedis-compatibility deps (separate config to avoid classpath conflict with real jedis)
     jedisCompatDeps project(':jedis-compatibility')
+
+    // junit
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: '5.10.2'
 }
 
 if (!System.getenv("GLIDE_RELEASE_VERSION")) {

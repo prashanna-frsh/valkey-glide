@@ -12,6 +12,7 @@ import glide.api.models.configuration.NodeAddress;
 import glide.api.models.configuration.ServerCredentials;
 import glide.benchmarks.clients.AsyncClient;
 import glide.benchmarks.utils.ConnectionSettings;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -79,6 +80,21 @@ public class GlideAsyncClient implements AsyncClient<String> {
     @Override
     public CompletableFuture<String> asyncGet(String key) {
         return glideClient.get(key);
+    }
+
+    @Override
+    public CompletableFuture<Long> asyncHset(String key, Map<String, String> fieldValueMap) {
+        return glideClient.hset(key, fieldValueMap);
+    }
+
+    @Override
+    public CompletableFuture<String> asyncHget(String key, String field) {
+        return glideClient.hget(key, field);
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> asyncHgetAll(String key) {
+        return glideClient.hgetall(key);
     }
 
     @Override

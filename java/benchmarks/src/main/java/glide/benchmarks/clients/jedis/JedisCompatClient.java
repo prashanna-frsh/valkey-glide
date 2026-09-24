@@ -4,6 +4,7 @@ package glide.benchmarks.clients.jedis;
 import glide.benchmarks.clients.SyncClient;
 import glide.benchmarks.utils.ConnectionSettings;
 import java.util.Collections;
+import java.util.Map;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
@@ -31,7 +32,9 @@ public class JedisCompatClient implements SyncClient {
                                     new HostAndPort(connectionSettings.host, connectionSettings.port)),
                             config);
         } else {
-            jedisPooled = new JedisPooled(new HostAndPort(connectionSettings.host, connectionSettings.port), config);
+            jedisPooled =
+                    new JedisPooled(
+                            new HostAndPort(connectionSettings.host, connectionSettings.port), config);
         }
     }
 
@@ -50,6 +53,33 @@ public class JedisCompatClient implements SyncClient {
             return jedisCluster.get(key);
         } else {
             return jedisPooled.get(key);
+        }
+    }
+
+    @Override
+    public void hset(String key, Map<String, String> fieldValueMap) {
+        if (isClusterMode) {
+            jedisCluster.hset(key, fieldValueMap);
+        } else {
+            jedisPooled.hset(key, fieldValueMap);
+        }
+    }
+
+    @Override
+    public String hget(String key, String field) {
+        if (isClusterMode) {
+            return jedisCluster.hget(key, field);
+        } else {
+            return jedisPooled.hget(key, field);
+        }
+    }
+
+    @Override
+    public Map<String, String> hgetAll(String key) {
+        if (isClusterMode) {
+            return jedisCluster.hgetAll(key);
+        } else {
+            return jedisPooled.hgetAll(key);
         }
     }
 
